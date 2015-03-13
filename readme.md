@@ -5,6 +5,7 @@
 **simple example**
 ```
 #!php
+
 // load login / logout module
 $ful = $modules->get('FrontendUserLogin');
 
@@ -18,6 +19,7 @@ echo $ful->logout("{$config->urls->root}login");
 **advanced usage**
 ```
 #!php
+
 // Callback to modify values just before or after login via dynamic function
 // optional login with email address instead of an username... (could also be done as username form field callback "process"! Just an example!!!)
 $callback['preLogin'] = function ($fulObj) {
@@ -38,6 +40,7 @@ $callback['postLogin'] = function ($fulObj) {
 
 ```
 #!php
+
 // Define a form field with a process callback
 /**
  * Username form field
@@ -68,6 +71,7 @@ protected function fieldUsername() {
 **simple example**
 ```
 #!php
+
 // load register module
 $fur = $modules->get('FrontendUserRegister');
 
