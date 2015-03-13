@@ -36,6 +36,10 @@ $callback['postLogin'] = function ($fulObj) {
         wire('modules')->get('LoginPersist')->persist();
     }
 };
+
+// login with callback
+echo $ful->login("{$config->urls->root}login", $callback)->render();
+
 ```
 
 ```
