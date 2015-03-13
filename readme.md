@@ -51,6 +51,7 @@ protected function fieldUsername() {
     // Set a "callbackProcess" to sanitize the input value or a "callbackPrepare" executed just before the field will be added to the form
     $field->fulOption = array(
         'callbackProcess' => function ($field) {
+//      'callbackProcess' => function ($field, $obj) {    // to get module object also outside the module class use an additional param
             // callback defined inside the module class and $this will work here!
             $this->user = wire('sanitizer')->username($field->value);
         },

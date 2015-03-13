@@ -109,7 +109,7 @@ class FrontendUserLogin extends WireData implements Module {
         
         foreach ($this->form as $field) {
             if (!empty($field->fulOption['callbackProcess'])) {
-                $field->fulOption['callbackProcess']($field);
+                $field->fulOption['callbackProcess']($field, $this);
             }
         }
         
