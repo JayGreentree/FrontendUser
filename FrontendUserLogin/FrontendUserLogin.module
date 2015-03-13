@@ -1,0 +1,192 @@
+<?php
+/**
+ * Processwire 'FrontendUserLogin' module
+ * 
+ * Login and logout frontend users.
+ * 
+ * @author pwFoo
+ * @since 2014-09-14
+ * 
+ * ProcessWire 2.x
+ * Copyright (C) 2011 by Ryan Cramer
+ * Licensed under GNU/GPL v2, see LICENSE.TXT
+ *
+ * http://www.processwire.com
+ * http://www.ryancramer.com
+ */
+class FrontendUserLogin extends WireData implements Module {
+    /**
+     * getModuleInfo is a module required by all modules to tell ProcessWire about them
+     * 
+     * @return array
+     */
+    public static function getModuleInfo() {
+        return array(
+            'title' => 'FrontendUserLogin',
+            'summary' => 'Login and logout frontend users',
+            'version' => '031',
+        );
+    }
+
+    private $callback = array();
+    private $redirect = null;
+    private $result = null;
+    private $form = null;
+    private $user = null;
+    private $pass = null;
+
+    
+    /**
+     * module initialization, required by module interface
+     */
+    public function init() {
+
+    }
+    
+    /**
+     * Handling and prepare login process
+     * @param string $redirect Destination after login
+     * @return string HTML login form
+     */
+    public function ___login($redirect = null, $callback = null, $form = null) {        
+        if (!$form instanceof InputfieldForm)   $form = $this->buildLoginForm();
+        $this->form     = $form;
+        $this->redirect = $redirect;
+        $this->callback = $callback;
+        
+        if ($this->processForm()) {
+            if (!empty($this->callback['PreLogin']))    $this->callback['PreLogin']($this);
+            $this->result = $this->pwLogin($this->user, $this->pass);
+            if (!empty($this->callback['PostLogin']))   $this->callback['PostLogin']($this);
+            
+            if ($this->result === true)     $this->session->redirect($this->redirect, false);               // Login sucessful
+            else                            $this->form->find("type=submit")->first->error($this->result);  // login error / login throttle
+        }
+        return $this;
+    }
+    
+    /**
+     * Handling and prepare logout process
+     * @param string $redirect Destination after logout
+     */
+    public function ___logout($redirect = null) {
+        $this->session->logout();
+        if ($redirect)  $this->session->redirect($redirect, false);
+    }
+    
+    /**
+     * Execute login with error handling
+     * @param string $user Username to login
+     * @param string $pass Users login pasword
+     * @return true|string True if sucessfully logged in or an error message
+     */
+    protected function ___pwLogin($user, $pass) {
+        try {
+            if ($this->session->login($user, $pass) instanceof User)    return true;
+            return $this->_('Login failed!');
+        }
+        catch(Exception $e) {
+            return $e->getMessage();
+        }
+    }
+
+    public function render() {
+        return $this->form->render();
+    }
+    
+    public function attr($key, $value = null) {
+        if ($value === null) return $this->$key;
+        $this->$key = $value;
+    }
+    
+    protected function processForm() {
+        $submitBtn = $this->form->find("type=submit")->first;
+        
+        if(!$this->input->post->{$submitBtn->name}) return null;    // form not submitted, end here...
+        if(!$this->session->CSRF->hasValidToken())  $submitBtn->error($this->_('Form token invalid!'));
+        $this->form->processInput($this->input->post);  // process form values
+        $this->session->CSRF->resetToken(); // reset the token so no double posts happen
+        
+        foreach ($this->form as $field) {
+            if (!empty($field->fulOption['callbackProcess'])) {
+                $field->fulOption['callbackProcess']($field);
+            }
+        }
+        
+        if (count($this->form->getErrors()))    return false;  // form submitted with errors
+        return true;    // form submitted and processed without errors
+    }
+    
+    /**
+     * Build the login form with basic fields
+     * @return object Processwire form object
+     */
+    protected function buildLoginForm() {
+        $form = $this->formObj();
+        $form->add($this->fieldUsername());
+        $form->add($this->fieldPassword());
+        $form->add($this->fieldSubmit());
+        return $form;
+    }
+    
+    /**
+     * Create PW form object
+     * @return object InputfieldForm
+     */
+    protected function ___formObj() {
+        $form = $this->modules->get('InputfieldForm');
+        $form->action = './';
+        $form->method = 'post';
+        $form->attr('id+name', 'fuLoginForm');  
+        return $form;
+    }
+    
+    /**
+     * Username form field
+     * @return object Username field
+     */
+    protected function fieldUsername() {
+        $field = $this->modules->get('InputfieldText');
+        $field->label = $this->_('Username');
+        $field->attr('id+name', 'username');
+        $field->required = 1;
+        $field->fulOption = array(
+            'callbackProcess' => function ($field) {
+                $this->user = $this->sanitizer->username($field->value);
+            }
+        );
+        return $field;
+    }
+    
+    /**
+     * Password form field
+     * @return object Password field
+     */
+    protected function fieldPassword() {
+        $field = $this->modules->get('InputfieldText');
+        $field->label = $this->_('Password');
+        $field->attr('id+name', 'password');
+        $field->attr('type','password');
+        $field->required = 1;
+        
+        $field->fulOption = array(
+            'callbackProcess' => function ($field) {
+                $this->pass = $field->value;
+                $field->value = '';
+            }
+        );
+        return $field;
+    }
+    
+    /**
+     * Form submit button
+     * @return object Submit button
+     */
+    protected function fieldSubmit() {
+        $submit = $this->modules->get('InputfieldSubmit');
+        $submit->attr('value', $this->_('Login'));
+        $submit->attr('id+name', 'fuLoginSubmit');
+        $submit->skipLabel = 2; // Inputfield::skipLabelHeader;
+        return $submit;
+    }
+}

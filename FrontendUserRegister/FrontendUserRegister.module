@@ -1,0 +1,208 @@
+<?php
+/**
+ * Processwire 'FrontendUserRegister' module
+ * 
+ * Frontend user register module.
+ * 
+ * @author Sturm88x4, pwFoo
+ * @since 2014-10-01
+ * 
+ * ProcessWire 2.x
+ * Copyright (C) 2011 by Ryan Cramer
+ * Licensed under GNU/GPL v2, see LICENSE.TXT
+ *
+ * http://www.processwire.com
+ * http://www.ryancramer.com
+ */
+class FrontendUserRegister extends WireData implements Module {
+    /**
+     * getModuleInfo is a module required by all modules to tell ProcessWire about them
+     * 
+     * @return array
+     */
+    public static function getModuleInfo() {
+        return array(
+            'title' => 'FrontendUserRegister',
+            'summary' => 'Frontend to register users',
+            'version' => '020',
+        );
+    }
+    
+    private $callback = array();
+    private $userObj = null;
+    private $redirect = null;
+    private $form = null;
+
+    /**
+     * module initialization, required by module interface
+     */
+    public function init() {
+
+    }
+    
+    /**
+     * Handling and prepare register process
+     * @param string $redirect Destination after register a new user
+     * @return string HTML register form
+     */
+    public function ___register($redirect = null, $callback = null, $form = null) {
+        if (!$form instanceof InputfieldForm)   $form = $this->buildRegisterForm();
+        $this->callback = $callback;
+        $this->redirect = $redirect;
+        $this->form     = $form;
+        
+        // process register form and send state
+        if ($this->processForm()) {
+            $this->saveUser();
+            $this->session->redirect($this->redirect, false);
+        }
+        return $this;
+    }
+
+    public function render() {
+        return $this->form->render();
+    }
+    
+    public function getUserObj() {
+        return $this->userObj;
+    }
+    
+    public function getForm() {
+        return $this->form;
+    }
+    
+    protected function processForm() {
+        $submitBtn = $this->form->find("type=submit")->first;
+        
+        if(!$this->input->post->{$submitBtn->name}) return null;    // form not submitted, end here...
+        if(!$this->session->CSRF->hasValidToken())  $submitBtn->error($this->_('Form token invalid!'));
+        $this->form->processInput($this->input->post);  // process form values
+        $this->session->CSRF->resetToken(); // reset the token so no double posts happen
+        
+        foreach ($this->form as $field) {
+            if (!empty($field->fulOption['callbackProcess'])) {
+                $field->fulOption['callbackProcess']($field, $this->userObj);
+            }
+        }
+        if (count($this->form->getErrors()))    return false;  // form submitted with errors
+        return true;    // form submitted and processed without errors
+    }
+    
+    /**
+     * Save the temp User object
+     * @return object Saved user object
+     */
+    protected function ___saveUser() {
+        try {
+            if (!empty($this->callback['PreRegister']))    $this->callback['PreRegister']($this);
+            $result = $this->userObj->save(); 
+            if (!empty($this->callback['PostRegister']))   $this->callback['PostRegister']($this);
+            return $result;
+        }
+        catch(Exception $e) {
+            return $e->getMessage();
+        }        
+    }
+    
+    /**
+     * Build the register form with basic fields
+     * @return object Processwire form object
+     */
+    protected function buildRegisterForm() {
+        $form = $this->formObj();
+        $form->add($this->fieldUsername());
+        $form->add($this->fieldEmail());
+        $form->add($this->fieldPassword());
+        $form->add($this->fieldSubmit());
+        return $form;
+    }
+    
+    /**
+     * Create PW form object
+     * @return object InputfieldForm
+     */
+    public function ___formObj() {
+        $form = $this->modules->get('InputfieldForm');
+        $form->action = './';
+        $form->method = 'post';
+        $form->attr('id+name', 'fuRegisterForm');  
+        return $form;
+    }
+    
+    /**
+     * Username form field
+     * @return object Username field
+     */
+    public function fieldUsername() {
+        $field = $this->modules->get('InputfieldText');
+        $field->label = $this->_('Username');
+        $field->attr('id+name', 'username');
+        $field->required = 1;
+        $field->fulOption = array(
+            'callbackProcess' => function ($field, $user) {
+                $username = wire('sanitizer')->username($field->value);
+                if (!empty($username) && wire('users')->count("name={$username}") == 0) {
+                    $user->name = $username;
+                }
+                else {
+                    $field->error(__('Username already taken!'));
+                }
+            }
+        );
+        return $field;
+    }
+    
+    /**
+     * Email form field
+     * @return object Email field
+     */
+    public function fieldEmail() {
+        $field = $this->modules->get('InputfieldEmail');
+        $field->label = $this->_('Email');
+        $field->attr('id+name', 'email');
+        $field->required = 1;
+        $field->fulOption = array(
+            'callbackProcess' => function ($field, $user) { 
+                $email = wire('sanitizer')->email($field->value);       
+                if (!empty($email) && wire('users')->count("email={$email}") == 0) {
+                     $user->email = $email;
+                }
+                else {
+                    $field->error(__('Email address already taken!'));         
+                }                  
+            }
+        );
+        return $field;
+    }
+    
+    /**
+     * Password form field
+     * @return object Password field
+     */
+    public function fieldPassword() {
+        $field = $this->modules->get('InputfieldPassword');
+        $field->label = $this->_('Password');
+        $field->attr('id+name', 'password');
+        $field->required = 1;
+        
+        $field->fulOption = array(
+            'callbackProcess' => function ($field, $user) {
+                $pass = (string)$field->value;                                      
+                $user->pass = $pass;                          
+            }
+        );
+        return $field;
+    }
+    
+    /**
+     * Form submit button
+     * @return object Submit button
+     */
+    public function fieldSubmit() {
+        $submit = $this->modules->get('InputfieldSubmit');
+        $submit->attr('value', $this->_('Login'));
+        $submit->attr('id+name', 'fuLoginSubmit');
+        $submit->skipLabel = 2; // Inputfield::skipLabelHeader;
+        return $submit;
+    }
+}
