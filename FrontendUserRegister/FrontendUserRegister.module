@@ -24,26 +24,32 @@ class FrontendUserRegister extends WireData implements Module {
         return array(
             'title' => 'FrontendUserRegister',
             'summary' => 'Frontend to register users',
-            'version' => '020',
+            'version' => '040',
         );
     }
     
-    private $callback = array();
-    private $userObj = null;
-    private $redirect = null;
-    private $form = null;
+    /**  @var array Callbacks preRegister and postRegister */
+    protected $callback = array();
+    
+    /** @var object PW user object */
+    protected $userObj = null;
+    
+    /** @var string Redirect destination */
+    protected $redirect = null;
+    
+    /** @var object PW form object */
+    protected $form = null;
 
     /**
      * module initialization, required by module interface
      */
-    public function init() {
-
-    }
+    public function init() { }
     
     /**
      * Handling and prepare register process
      * @param string $redirect Destination after register a new user
-     * @return string HTML register form
+     * @param array $callback Set preRegister and postRegister callbacks
+     * @param object $form Replace default login form
      */
     public function ___register($redirect = null, $callback = null, $form = null) {
         if (!$form instanceof InputfieldForm)   $form = $this->buildRegisterForm();
@@ -58,19 +64,11 @@ class FrontendUserRegister extends WireData implements Module {
         }
         return $this;
     }
-
-    public function render() {
-        return $this->form->render();
-    }
     
-    public function getUserObj() {
-        return $this->userObj;
-    }
-    
-    public function getForm() {
-        return $this->form;
-    }
-    
+    /**
+     * Process register form
+     * @return boolean Not submitted (null), submitted with (false) or without errors (true)
+     */
     protected function processForm() {
         $submitBtn = $this->form->find("type=submit")->first;
         
@@ -92,16 +90,35 @@ class FrontendUserRegister extends WireData implements Module {
      * Save the temp User object
      * @return object Saved user object
      */
-    protected function ___saveUser() {
+    protected function saveUser() {
         try {
-            if (!empty($this->callback['PreRegister']))    $this->callback['PreRegister']($this);
+            if (!empty($this->callback['preRegister']))    $this->callback['preRegister']($this);
             $result = $this->userObj->save(); 
-            if (!empty($this->callback['PostRegister']))   $this->callback['PostRegister']($this);
+            if (!empty($this->callback['postRegister']))   $this->callback['postRegister']($this);
             return $result;
         }
         catch(Exception $e) {
             return $e->getMessage();
         }        
+    }
+
+    /** 
+     * Render login form
+     * @return html Rendered login form
+     */
+    public function render() {
+        return $this->form->render();
+    }
+    
+    /**
+     * Set / get class attributes
+     * @param string $key Attribute name
+     * @param mixed $value Attribute value
+     * @return mixed Attribute value
+     */
+    public function attr($key, $value = null) {
+        if ($value === null) return $this->$key;
+        $this->$key = $value;
     }
     
     /**

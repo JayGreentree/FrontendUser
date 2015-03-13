@@ -24,29 +24,38 @@ class FrontendUserLogin extends WireData implements Module {
         return array(
             'title' => 'FrontendUserLogin',
             'summary' => 'Login and logout frontend users',
-            'version' => '031',
+            'version' => '050',
         );
     }
 
-    private $callback = array();
-    private $redirect = null;
-    private $result = null;
-    private $form = null;
-    private $user = null;
-    private $pass = null;
-
+    /** @var array Callbacks preLogin and postLogin */
+    protected $callback = array();
     
+    /** @var string Redirect destination */
+    protected $redirect = null;
+    
+    /** @var mixed True if sucessful, error string if login fails */
+    protected $result = null;
+    
+    /** @var object PW form object */
+    protected $form = null;
+    
+    /** @var string Login username */
+    protected $user = null;
+    
+    /** @var string Login user passwort */
+    protected $pass = null;
+
     /**
      * module initialization, required by module interface
      */
-    public function init() {
-
-    }
+    public function init() { }
     
     /**
      * Handling and prepare login process
      * @param string $redirect Destination after login
-     * @return string HTML login form
+     * @param array $callback Set preLogin and postLogin callbacks
+     * @param object $form Replace default login form
      */
     public function ___login($redirect = null, $callback = null, $form = null) {        
         if (!$form instanceof InputfieldForm)   $form = $this->buildLoginForm();
@@ -55,9 +64,9 @@ class FrontendUserLogin extends WireData implements Module {
         $this->callback = $callback;
         
         if ($this->processForm()) {
-            if (!empty($this->callback['PreLogin']))    $this->callback['PreLogin']($this);
+            if (!empty($this->callback['preLogin']))    $this->callback['preLogin']($this);
             $this->result = $this->pwLogin($this->user, $this->pass);
-            if (!empty($this->callback['PostLogin']))   $this->callback['PostLogin']($this);
+            if (!empty($this->callback['postLogin']))   $this->callback['postLogin']($this);
             
             if ($this->result === true)     $this->session->redirect($this->redirect, false);               // Login sucessful
             else                            $this->form->find("type=submit")->first->error($this->result);  // login error / login throttle
@@ -90,15 +99,29 @@ class FrontendUserLogin extends WireData implements Module {
         }
     }
 
+    /** 
+     * Render login form
+     * @return html Rendered login form
+     */
     public function render() {
         return $this->form->render();
     }
     
+    /**
+     * Set / get class attributes
+     * @param string $key Attribute name
+     * @param mixed $value Attribute value
+     * @return mixed Attribute value
+     */
     public function attr($key, $value = null) {
         if ($value === null) return $this->$key;
         $this->$key = $value;
     }
     
+    /**
+     * Process login form
+     * @return boolean Not submitted (null), submitted with (false) or without errors (true)
+     */
     protected function processForm() {
         $submitBtn = $this->form->find("type=submit")->first;
         
