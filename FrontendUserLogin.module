@@ -1,0 +1,161 @@
+<?php
+/**
+ * Processwire 'FrontendUserLogin' module
+ * 
+ * Login and logout frontend users.
+ * 
+ * @author pwFoo
+ * @since 2015-03-10
+ * 
+ * ProcessWire 2.x
+ * Copyright (C) 2011 by Ryan Cramer
+ * Licensed under GNU/GPL v2, see LICENSE.TXT
+ *
+ * http://www.processwire.com
+ * http://www.ryancramer.com
+ */
+require_once('FrontendUser.class.php');
+class FrontendUserLogin extends FrontendUser {
+    /**
+     * getModuleInfo is a module required by all modules to tell ProcessWire about them
+     * 
+     * @return array
+     */
+    public static function getModuleInfo() {
+        return array(
+            'title' => 'FrontendUserLogin',
+            'summary' => 'Login and logout frontend users',
+            'version' => '050',
+        );
+    }
+    
+    /**
+     * module initialization, required by module interface
+     */
+    public function init() {
+        $this->userObj = new stdClass();
+    }
+    
+    /**
+     * Handling and prepare login process
+     * @param string $redirect Destination after login
+     * @param array $callback Set preLogin and postLogin callbacks
+     */
+    public function login($redirect = null, $callback = null) {        
+        $this->form = $this->buildLoginForm();
+        $this->redirect = $redirect;
+        
+        if ($this->processForm()) {
+            $result = $this->pwLogin($callback);
+            if ($result === true)     $this->session->redirect($this->redirect, false);         // Login sucessful
+            else                      $this->form->find("type=submit")->first->error($result);  // login error / login throttle
+        }
+        return $this;
+    }
+    
+    /**
+     * Handling and prepare logout process
+     * @param string $redirect Destination after logout
+     */
+    public function ___logout($redirect = null, $callback = null) {
+        if (!empty($callback['preLogout']))    $callback['preLogout']($this);
+        $this->session->logout();
+        if (!empty($callback['postLogout']))    $callback['postLogout']($this);
+        if ($redirect)  $this->session->redirect($redirect, false);
+    }
+    
+    /**
+     * Execute login with error handling
+     * @param array $callback Array with preLogin and postLogin dynamic callback functions.
+     * @return true|string True if sucessfully logged in or an error message
+     */
+    protected function ___pwLogin($callback = null) {
+        try {
+            if (!empty($callback['preLogin']))    $callback['preLogin']($this);
+            $this->userObj = $this->session->login($this->userObj->user, $this->userObj->pass);
+            if (!empty($callback['postLogin']))   $callback['postLogin']($this);
+            
+            if ($this->userObj instanceof User)   return true;
+            return $this->_('Login failed!');
+        }
+        catch(Exception $e) {
+            return $e->getMessage();
+        }
+    }
+
+    /**
+     * Build the login form with basic fields
+     * @return object Processwire form object
+     */
+    protected function buildLoginForm() {
+        $form = $this->formObj();
+        $form->add($this->fieldUsername());
+        $form->add($this->fieldPassword());
+        $form->add($this->fieldSubmit());
+        return $form;
+    }
+    
+    /**
+     * Create PW form object
+     * @return object InputfieldForm
+     */
+    protected function ___formObj() {
+        $form = $this->modules->get('InputfieldForm');
+        $form->action = './';
+        $form->method = 'post';
+        $form->attr('id+name', 'fuLoginForm');  
+        return $form;
+    }
+    
+    /**
+     * Username form field
+     * @return object Username field
+     */
+    protected function fieldUsername() {
+        $field = $this->modules->get('InputfieldText');
+        //$field->label = $this->_('Username');
+        $field->skipLabel = 4; // Inputfield::skipLabelBlank;
+        $field->placeholder = $this->_('Username');
+        $field->attr('id+name', 'username');
+        $field->required = 1;
+        $field->fulOption = array(
+            'callbackProcess' => function ($field, $module) {
+                $module->attr('userObj')->user = wire('sanitizer')->username($field->value);
+            }
+        );
+        return $field;
+    }
+    
+    /**
+     * Password form field
+     * @return object Password field
+     */
+    protected function fieldPassword() {
+        $field = $this->modules->get('InputfieldText');
+        //$field->label = $this->_('Password');
+        $field->skipLabel = 4; // Inputfield::skipLabelBlank;
+        $field->placeholder = $this->_('Password');
+        $field->attr('id+name', 'password');
+        $field->attr('type','password');
+        $field->required = 1;
+        $field->fulOption = array(
+            'callbackProcess' => function ($field, $module) {
+                $module->attr('userObj')->pass = $field->value;
+                $field->value = '';
+            }
+        );
+        return $field;
+    }
+    
+    /**
+     * Form submit button
+     * @return object Submit button
+     */
+    protected function fieldSubmit() {
+        $submit = $this->modules->get('InputfieldSubmit');
+        $submit->attr('value', $this->_('Login'));
+        $submit->attr('id+name', 'fuLoginSubmit');
+        $submit->skipLabel = 4; // Inputfield::skipLabelBlank;
+        return $submit;
+    }
+}

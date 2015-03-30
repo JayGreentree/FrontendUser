@@ -14,7 +14,8 @@
  * http://www.processwire.com
  * http://www.ryancramer.com
  */
-class FrontendUserRegister extends WireData implements Module {
+require_once('FrontendUser.class.php');
+class FrontendUserRegister extends FrontendUser {
     /**
      * getModuleInfo is a module required by all modules to tell ProcessWire about them
      * 
@@ -27,100 +28,39 @@ class FrontendUserRegister extends WireData implements Module {
             'version' => '040',
         );
     }
-    
-    /**  @var array Callbacks preRegister and postRegister */
-    protected $callback = array();
-    
-    /** @var object PW user object */
-    protected $userObj = null;
-    
-    /** @var string Redirect destination */
-    protected $redirect = null;
-    
-    /** @var object PW form object */
-    protected $form = null;
 
-    /**
-     * module initialization, required by module interface
-     */
-    public function init() { }
-    
+    public function init() {
+        $this->userObj = new User();
+    }
+
+
     /**
      * Handling and prepare register process
      * @param string $redirect Destination after register a new user
      * @param array $callback Set preRegister and postRegister callbacks
-     * @param object $form Replace default login form
      */
-    public function ___register($redirect = null, $callback = null, $form = null) {
-        if (!$form instanceof InputfieldForm)   $form = $this->buildRegisterForm();
-        $this->callback = $callback;
+    public function register($redirect = null, $callback = null) {
+        $this->form = $this->buildRegisterForm();
         $this->redirect = $redirect;
-        $this->form     = $form;
         
-        // process register form and send state
-        if ($this->processForm()) {
-            $this->saveUser();
+        // process form and save new user, redirect if userId is set during userSave()
+        if ($this->processForm() && $this->saveUser($callback)) {
             $this->session->redirect($this->redirect, false);
         }
         return $this;
     }
-    
-    /**
-     * Process register form
-     * @return boolean Not submitted (null), submitted with (false) or without errors (true)
-     */
-    protected function processForm() {
-        $submitBtn = $this->form->find("type=submit")->first;
         
-        if(!$this->input->post->{$submitBtn->name}) return null;    // form not submitted, end here...
-        if(!$this->session->CSRF->hasValidToken())  $submitBtn->error($this->_('Form token invalid!'));
-        $this->form->processInput($this->input->post);  // process form values
-        $this->session->CSRF->resetToken(); // reset the token so no double posts happen
-        
-        foreach ($this->form as $field) {
-            if (!empty($field->fulOption['callbackProcess'])) {
-                $field->fulOption['callbackProcess']($field, $this->userObj);
-            }
-        }
-        if (count($this->form->getErrors()))    return false;  // form submitted with errors
-        return true;    // form submitted and processed without errors
-    }
-    
     /**
      * Save the temp User object
      * @return object Saved user object
      */
-    protected function saveUser() {
-        try {
-            if (!empty($this->callback['preRegister']))    $this->callback['preRegister']($this);
-            $result = $this->userObj->save(); 
-            if (!empty($this->callback['postRegister']))   $this->callback['postRegister']($this);
-            return $result;
-        }
-        catch(Exception $e) {
-            return $e->getMessage();
-        }        
+    protected function ___saveUser($callback = null) {
+        if (!empty($callback['preRegister']))    $callback['preRegister']($this);
+        $this->userObj->save();   // if sucesfully saved user id changed from 0 to saved id
+        if (!empty($callback['postRegister']))   $callback['postRegister']($this);
+        return $this->userObj->id;
     }
-
-    /** 
-     * Render login form
-     * @return html Rendered login form
-     */
-    public function render() {
-        return $this->form->render();
-    }
-    
-    /**
-     * Set / get class attributes
-     * @param string $key Attribute name
-     * @param mixed $value Attribute value
-     * @return mixed Attribute value
-     */
-    public function attr($key, $value = null) {
-        if ($value === null) return $this->$key;
-        $this->$key = $value;
-    }
-    
+   
     /**
      * Build the register form with basic fields
      * @return object Processwire form object
@@ -138,7 +78,7 @@ class FrontendUserRegister extends WireData implements Module {
      * Create PW form object
      * @return object InputfieldForm
      */
-    public function ___formObj() {
+    protected function formObj() {
         $form = $this->modules->get('InputfieldForm');
         $form->action = './';
         $form->method = 'post';
@@ -150,16 +90,16 @@ class FrontendUserRegister extends WireData implements Module {
      * Username form field
      * @return object Username field
      */
-    public function fieldUsername() {
+    protected function fieldUsername() {
         $field = $this->modules->get('InputfieldText');
         $field->label = $this->_('Username');
         $field->attr('id+name', 'username');
         $field->required = 1;
         $field->fulOption = array(
-            'callbackProcess' => function ($field, $user) {
+            'callbackProcess' => function ($field, $module) {
                 $username = wire('sanitizer')->username($field->value);
                 if (!empty($username) && wire('users')->count("name={$username}") == 0) {
-                    $user->name = $username;
+                    $module->attr('userObj')->name = $username;
                 }
                 else {
                     $field->error(__('Username already taken!'));
@@ -173,16 +113,17 @@ class FrontendUserRegister extends WireData implements Module {
      * Email form field
      * @return object Email field
      */
-    public function fieldEmail() {
+    protected function fieldEmail() {
         $field = $this->modules->get('InputfieldEmail');
         $field->label = $this->_('Email');
         $field->attr('id+name', 'email');
         $field->required = 1;
         $field->fulOption = array(
-            'callbackProcess' => function ($field, $user) { 
+            'callbackProcess' => function ($field, $module) { 
                 $email = wire('sanitizer')->email($field->value);       
-                if (!empty($email) && wire('users')->count("email={$email}") == 0) {
-                     $user->email = $email;
+                if (empty($email))  return;
+                elseif (wire('users')->count("email={$email}") == 0) {
+                     $module->attr('userObj')->email = $email;
                 }
                 else {
                     $field->error(__('Email address already taken!'));         
@@ -196,16 +137,16 @@ class FrontendUserRegister extends WireData implements Module {
      * Password form field
      * @return object Password field
      */
-    public function fieldPassword() {
+    protected function fieldPassword() {
         $field = $this->modules->get('InputfieldPassword');
         $field->label = $this->_('Password');
         $field->attr('id+name', 'password');
         $field->required = 1;
         
         $field->fulOption = array(
-            'callbackProcess' => function ($field, $user) {
+            'callbackProcess' => function ($field, $module) {
                 $pass = (string)$field->value;                                      
-                $user->pass = $pass;                          
+                $module->attr('userObj')->pass = $pass;                          
             }
         );
         return $field;
@@ -215,11 +156,11 @@ class FrontendUserRegister extends WireData implements Module {
      * Form submit button
      * @return object Submit button
      */
-    public function fieldSubmit() {
+    protected function fieldSubmit() {
         $submit = $this->modules->get('InputfieldSubmit');
-        $submit->attr('value', $this->_('Login'));
-        $submit->attr('id+name', 'fuLoginSubmit');
-        $submit->skipLabel = 2; // Inputfield::skipLabelHeader;
+        $submit->skipLabel = 4; // Inputfield::skipLabelBlank;
+        $submit->attr('value', $this->_('Register'));
+        $submit->attr('id+name', 'fuLoginRegister');
         return $submit;
     }
 }
