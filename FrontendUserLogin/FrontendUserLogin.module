@@ -1,8 +1,8 @@
 <?php
 /**
- * Processwire 'FrontendUserRegister' module
+ * Processwire 'FrontendUserLogin' module
  * 
- * Frontend user register module.
+ * Login and logout frontend users.
  * 
  * @author pwFoo
  * @since 2015-03-10
@@ -14,7 +14,7 @@
  * http://www.processwire.com
  * http://www.ryancramer.com
  */
-class FrontendUserRegister extends WireData implements Module {
+class FrontendUserLogin extends WireData implements Module {
     /**
      * getModuleInfo is a module required by all modules to tell ProcessWire about them
      * 
@@ -22,22 +22,28 @@ class FrontendUserRegister extends WireData implements Module {
      */
     public static function getModuleInfo() {
         return array(
-            'title' => 'FrontendUserRegister',
-            'summary' => 'Frontend to register users',
-            'version' => '041',
-            'requires'  => 'FormHelper>=061, ProcessWire>=2.5.18, PHP>=5.4.0',
+            'title' => 'FrontendUserLogin',
+            'summary' => 'Login and logout frontend users',
+            'version' => '051',
+            'requires'  => 'FormHelper>=0.6.1, ProcessWire>=2.5.18, PHP>=5.4.0',
         );
     }
-   
+    
     /** @var InputfieldForm PW form object extended by FormHelper */
     protected $form;
     
-    /** @var User PW user object to collect the register information */
-    protected $userObj;
+    /** @var string Login username */
+    protected $user;
+    
+    /** @var string Login password */
+    protected $pass;
     
     /** @var string Previously visited page */
     protected $previousPage;
 
+    /**
+     * module initialization, required by module interface
+     */
     public function init() {
         // previous visited page
         $history = $this->session->getHistory();
@@ -47,36 +53,59 @@ class FrontendUserRegister extends WireData implements Module {
         $this->loadCssJs();
     }
     
-    public function register($redirect = null) {
+    // js / css handling aus FrontendUser.class.php übernehmen !!!
+    
+    public function login($redirect = null) {
         $redirect = ($redirect ? $redirect : $this->previousPage);
-        $this->buildRegisterForm();
-        $this->userObj = new User();
+        $this->buildLoginForm();
         
-        if($this->form->fhProcessForm() && !empty($this->saveUser())) {
-            $this->session->redirect($redirect, false);
+        if($this->form->fhProcessForm()) {
+            $result = $this->pwLogin();
+            if ($result === true) {
+                $this->session->redirect($redirect, false);     // Login sucessful
+            }
+            else {
+                $this->form->fhSubmitBtn->error($result);       // login error / login throttle       
+            }
         }
         return $this->form;
     }
-        
-    /**
-     * Save the temp User object
-     * @return object Saved user object
+
+        /**
+     * Handling and prepare logout process
+     * @param string $redirect Destination after logout
      */
-    protected function ___saveUser($callback = null) {
-        $this->userObj->save();   // if sucesfully saved user id changed from 0 to saved id
-        return !empty($this->userObj->id);
+    public function logout($redirect = null) {
+        $redirect = ($redirect ? $redirect : $this->previousPage);
+        $this->session->logout();
+        $this->session->redirect($redirect, false);
     }
-   
+    
     /**
-     * Build the register form with basic fields
-     * @return object Processwire form object
+     * Execute login with error handling
+     * @return true|string True if sucessfully logged in or an error message
      */
-    protected function buildRegisterForm() {
+    protected function ___pwLogin() {
+        try {
+            $result = $this->session->login($this->user, $this->pass);
+            if ($result instanceof User) {
+                return true;
+            }
+            return $this->_('Login failed!');
+        }
+        catch(Exception $e) {
+            return $e->getMessage();
+        }
+    }
+
+    /**
+     * Build the login form with basic fields
+     */
+    protected function buildLoginForm() {
         $this->form = $this->modules->get('FormHelper')->create();
-        $this->form->attr('id+name', 'fuRegisterForm');
-        $this->form->fhSubmitBtn->attr('value', $this->_('Register'));
+        $this->form->attr('id+name', 'fuLoginForm');
+        $this->form->fhSubmitBtn->attr('value', $this->_('Login'));
         $this->form->add($this->fieldUsername());
-        $this->form->add($this->fieldEmail());
         $this->form->add($this->fieldPassword());
     }
     
@@ -86,45 +115,14 @@ class FrontendUserRegister extends WireData implements Module {
      */
     protected function fieldUsername() {
         $field = $this->modules->get('InputfieldText');
-        $field->label = $this->_('Username');
+        $field->skipLabel = 4; // Inputfield::skipLabelBlank;
+        $field->placeholder = $this->_('Username');
         $field->attr('id+name', 'username');
         $field->required = 1;
         $field->fhSanitizer = 'username';
         $field->addHook('fhCallbackProcessed', function($event) {
             $field = $event->object;
-            $username = $this->form->fhValue($field->name);
-            
-            if (empty($username))   return;
-            elseif (wire('users')->count("name={$username}") == 0) {
-                $this->userObj->name = $username;
-            }
-            else {
-                $field->error(__('Username already taken!'));  
-            }
-        });
-        return $field;
-    }
-    
-    /**
-     * Email form field
-     * @return object Email field
-     */
-    protected function fieldEmail() {
-        $field = $this->modules->get('InputfieldEmail');
-        $field->label = $this->_('Email');
-        $field->attr('id+name', 'email');
-        $field->required = 1;
-        $field->addHook('fhCallbackProcessed', function($event) {
-            $field = $event->object;
-            $email = $this->form->fhValue($field->name);
-            
-            if (empty($email))  return;
-            elseif (wire('users')->count("email={$email}") == 0) {
-                $this->userObj->email = $email;
-            }
-            else {
-                $field->error(__('Email address already taken!'));
-            }
+            $this->user = $this->form->fhValue($field->name);
         });
         return $field;
     }
@@ -134,13 +132,15 @@ class FrontendUserRegister extends WireData implements Module {
      * @return object Password field
      */
     protected function fieldPassword() {
-        $field = $this->modules->get('InputfieldPassword');
-        $field->label = $this->_('Password');
+        $field = $this->modules->get('InputfieldText');
+        $field->skipLabel = 4; // Inputfield::skipLabelBlank;
+        $field->placeholder = $this->_('Password');
         $field->attr('id+name', 'password');
+        $field->attr('type','password');
         $field->required = 1;
         $field->addHook('fhCallbackProcessed', function($event) {
             $field = $event->object;
-            $this->userObj->pass = $field->value;
+            $this->pass = $field->value;
             $field->value = '';
         });
         return $field;
