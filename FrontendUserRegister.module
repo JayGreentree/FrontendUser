@@ -14,8 +14,7 @@
  * http://www.processwire.com
  * http://www.ryancramer.com
  */
-require_once('FrontendUser.class.php');
-class FrontendUserRegister extends FrontendUser {
+class FrontendUserRegister extends WireData implements Module {
     /**
      * getModuleInfo is a module required by all modules to tell ProcessWire about them
      * 
@@ -25,29 +24,38 @@ class FrontendUserRegister extends FrontendUser {
         return array(
             'title' => 'FrontendUserRegister',
             'summary' => 'Frontend to register users',
-            'version' => '040',
+            'version' => '041',
+            'requires'  => 'FormHelper>=061, ProcessWire>=2.5.18, PHP>=5.4.0',
         );
     }
+   
+    /** @var InputfieldForm PW form object extended by FormHelper */
+    protected $form;
+    
+    /** @var User PW user object to collect the register information */
+    protected $userObj;
+    
+    /** @var string Previously visited page */
+    protected $previousPage;
 
     public function init() {
-        $this->userObj = new User();
-    }
-
-
-    /**
-     * Handling and prepare register process
-     * @param string $redirect Destination after register a new user
-     * @param array $callback Set preRegister and postRegister callbacks
-     */
-    public function register($redirect = null, $callback = null) {
-        $this->form = $this->buildRegisterForm();
-        $this->redirect = $redirect;
+        // previous visited page
+        $history = $this->session->getHistory();
+        $this->previousPage = end($history)['url'];
         
-        // process form and save new user, redirect if userId is set during userSave()
-        if ($this->processForm() && $this->saveUser($callback)) {
-            $this->session->redirect($this->redirect, false);
+        // Load CSS / JS custom or default files
+        $this->loadCssJs();
+    }
+    
+    public function register($redirect = null) {
+        $redirect = ($redirect ? $redirect : $this->previousPage);
+        $this->buildRegisterForm();
+        $this->userObj = new User();
+        
+        if($this->form->fhProcessForm() && !empty($this->saveUser())) {
+            $this->session->redirect($redirect, false);
         }
-        return $this;
+        return $this->form;
     }
         
     /**
@@ -55,10 +63,8 @@ class FrontendUserRegister extends FrontendUser {
      * @return object Saved user object
      */
     protected function ___saveUser($callback = null) {
-        if (!empty($callback['preRegister']))    $callback['preRegister']($this);
         $this->userObj->save();   // if sucesfully saved user id changed from 0 to saved id
-        if (!empty($callback['postRegister']))   $callback['postRegister']($this);
-        return $this->userObj->id;
+        return !empty($this->userObj->id);
     }
    
     /**
@@ -66,24 +72,12 @@ class FrontendUserRegister extends FrontendUser {
      * @return object Processwire form object
      */
     protected function buildRegisterForm() {
-        $form = $this->formObj();
-        $form->add($this->fieldUsername());
-        $form->add($this->fieldEmail());
-        $form->add($this->fieldPassword());
-        $form->add($this->fieldSubmit());
-        return $form;
-    }
-    
-    /**
-     * Create PW form object
-     * @return object InputfieldForm
-     */
-    protected function formObj() {
-        $form = $this->modules->get('InputfieldForm');
-        $form->action = './';
-        $form->method = 'post';
-        $form->attr('id+name', 'fuRegisterForm');  
-        return $form;
+        $this->form = $this->modules->get('FormHelper')->create();
+        $this->form->attr('id+name', 'fuRegisterForm');
+        $this->form->fhSubmitBtn->attr('value', $this->_('Register'));
+        $this->form->add($this->fieldUsername());
+        $this->form->add($this->fieldEmail());
+        $this->form->add($this->fieldPassword());
     }
     
     /**
@@ -95,17 +89,19 @@ class FrontendUserRegister extends FrontendUser {
         $field->label = $this->_('Username');
         $field->attr('id+name', 'username');
         $field->required = 1;
-        $field->fulOption = array(
-            'callbackProcess' => function ($field, $module) {
-                $username = wire('sanitizer')->username($field->value);
-                if (!empty($username) && wire('users')->count("name={$username}") == 0) {
-                    $module->attr('userObj')->name = $username;
-                }
-                else {
-                    $field->error(__('Username already taken!'));
-                }
+        $field->fhSanitizer = 'username';
+        $field->addHook('fhCallbackProcessed', function($event) {
+            $field = $event->object;
+            $username = $this->form->fhValue($field->name);
+            
+            if (empty($username))   return;
+            elseif (wire('users')->count("name={$username}") == 0) {
+                $this->userObj->name = $username;
             }
-        );
+            else {
+                $field->error(__('Username already taken!'));  
+            }
+        });
         return $field;
     }
     
@@ -118,18 +114,18 @@ class FrontendUserRegister extends FrontendUser {
         $field->label = $this->_('Email');
         $field->attr('id+name', 'email');
         $field->required = 1;
-        $field->fulOption = array(
-            'callbackProcess' => function ($field, $module) { 
-                $email = wire('sanitizer')->email($field->value);       
-                if (empty($email))  return;
-                elseif (wire('users')->count("email={$email}") == 0) {
-                     $module->attr('userObj')->email = $email;
-                }
-                else {
-                    $field->error(__('Email address already taken!'));         
-                }                  
+        $field->addHook('fhCallbackProcessed', function($event) {
+            $field = $event->object;
+            $email = $this->form->fhValue($field->name);
+            
+            if (empty($email))  return;
+            elseif (wire('users')->count("email={$email}") == 0) {
+                $this->userObj->email = $email;
             }
-        );
+            else {
+                $field->error(__('Email address already taken!'));
+            }
+        });
         return $field;
     }
     
@@ -142,25 +138,35 @@ class FrontendUserRegister extends FrontendUser {
         $field->label = $this->_('Password');
         $field->attr('id+name', 'password');
         $field->required = 1;
-        
-        $field->fulOption = array(
-            'callbackProcess' => function ($field, $module) {
-                $pass = (string)$field->value;                                      
-                $module->attr('userObj')->pass = $pass;                          
-            }
-        );
+        $field->addHook('fhCallbackProcessed', function($event) {
+            $field = $event->object;
+            $this->userObj->pass = $field->value;
+            $field->value = '';
+        });
         return $field;
     }
     
     /**
-     * Form submit button
-     * @return object Submit button
+     * Load custom or default module styles / scripts
      */
-    protected function fieldSubmit() {
-        $submit = $this->modules->get('InputfieldSubmit');
-        $submit->skipLabel = 4; // Inputfield::skipLabelBlank;
-        $submit->attr('value', $this->_('Register'));
-        $submit->attr('id+name', 'fuLoginRegister');
-        return $submit;
+    protected function loadCssJs() {
+        $this->getCssJs("{$this}.css", 'styles');
+        $this->getCssJs("{$this}.js", 'scripts');
+    }
+    
+    /**
+     * 
+     * @param string $file Filename to load
+     * @param string $type File type scripts or styles
+     */
+    protected function getCssJs($file, $type) {
+        $custom = $this . '/' . $file;
+        if (file_exists($this->config->paths->templates . $custom)) {
+            $this->config->$type->add($this->config->urls->templates . $custom);
+        }
+        else {
+            $defaultFile = "{$this->config->urls->FrontendUserLogin}{$type}/$file";
+            $this->config->$type->add($defaultFile);
+        }
     }
 }
