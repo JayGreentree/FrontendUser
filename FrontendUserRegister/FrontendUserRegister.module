@@ -24,8 +24,8 @@ class FrontendUserRegister extends WireData implements Module {
         return array(
             'title' => 'FrontendUserRegister',
             'summary' => 'Frontend to register users',
-            'version' => '041',
-            'requires'  => 'FormHelper>=0.6.1, ProcessWire>=2.5.18, PHP>=5.4.0',
+            'version' => '050',
+            'requires'  => 'FormHelper>=0.7.0, ProcessWire>=2.5.18, PHP>=5.4.0',
         );
     }
    
@@ -39,32 +39,33 @@ class FrontendUserRegister extends WireData implements Module {
     protected $previousPage;
 
     public function init() {
+        $this->buildRegisterForm();     // Build register form
+        $this->loadCssJs();             // Load CSS / JS custom or default files
+        $this->userObj = new User();    // Create User object
+
         // previous visited page
         $history = $this->session->getHistory();
         $this->previousPage = end($history)['url'];
-        
-        // Load CSS / JS custom or default files
-        $this->loadCssJs();
     }
     
-    public function register($redirect = null) {
+    public function ___register($redirect = null) {
         $redirect = ($redirect ? $redirect : $this->previousPage);
-        $this->buildRegisterForm();
-        $this->userObj = new User();
         
-        if($this->form->fhProcessForm() && !empty($this->saveUser())) {
+        if($this->form->fhProcessForm() && !empty($this->saveUser($this->userObj))) {
             $this->session->redirect($redirect, false);
         }
-        return $this->form;
+        return $this->form->render();
     }
         
     /**
      * Save the temp User object
-     * @return object Saved user object
+     * @return User Saved User object or false
      */
-    protected function ___saveUser($callback = null) {
-        $this->userObj->save();   // if sucesfully saved user id changed from 0 to saved id
-        return !empty($this->userObj->id);
+    protected function ___saveUser($user) {
+        if ($user->save()) {
+            return $user;
+        }
+        return false;
     }
    
     /**
@@ -90,7 +91,7 @@ class FrontendUserRegister extends WireData implements Module {
         $field->attr('id+name', 'username');
         $field->required = 1;
         $field->fhSanitizer = 'username';
-        $field->addHook('fhCallbackProcessed', function($event) {
+        $field->addHookAfter('processInput', function($event) {
             $field = $event->object;
             $username = $this->form->fhValue($field->name);
             
@@ -114,7 +115,7 @@ class FrontendUserRegister extends WireData implements Module {
         $field->label = $this->_('Email');
         $field->attr('id+name', 'email');
         $field->required = 1;
-        $field->addHook('fhCallbackProcessed', function($event) {
+        $field->addHookAfter('processInput', function($event) {
             $field = $event->object;
             $email = $this->form->fhValue($field->name);
             
@@ -138,12 +139,23 @@ class FrontendUserRegister extends WireData implements Module {
         $field->label = $this->_('Password');
         $field->attr('id+name', 'password');
         $field->required = 1;
-        $field->addHook('fhCallbackProcessed', function($event) {
+        $field->addHookAfter('processInput', function($event) {
             $field = $event->object;
             $this->userObj->pass = $field->value;
+        });
+        $field->addHookBefore('render', function($event) {
+            $field = $event->object;
             $field->value = '';
         });
         return $field;
+    }
+    
+    /**
+     * Set / get class attributes
+     */
+    public function attr($key, $value = null) {
+        if ($value === null) return $this->$key;
+        $this->$key = $value;
     }
     
     /**
@@ -155,18 +167,18 @@ class FrontendUserRegister extends WireData implements Module {
     }
     
     /**
-     * 
+     * Load custom or default CSS / JS file
      * @param string $file Filename to load
      * @param string $type File type scripts or styles
      */
     protected function getCssJs($file, $type) {
         $custom = $this . '/' . $file;
         if (file_exists($this->config->paths->templates . $custom)) {
-            $this->config->$type->add($this->config->urls->templates . $custom);
+            $file = $this->config->urls->templates . $custom;
         }
         else {
-            $defaultFile = "{$this->config->urls->FrontendUserLogin}{$type}/$file";
-            $this->config->$type->add($defaultFile);
+            $file = "{$this->config->urls->FrontendUserLogin}/$file";
         }
+        $this->config->$type->add($file);
     }
 }

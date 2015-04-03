@@ -24,8 +24,8 @@ class FrontendUserLogin extends WireData implements Module {
         return array(
             'title' => 'FrontendUserLogin',
             'summary' => 'Login and logout frontend users',
-            'version' => '051',
-            'requires'  => 'FormHelper>=0.6.1, ProcessWire>=2.5.18, PHP>=5.4.0',
+            'version' => '060',
+            'requires'  => 'FormHelper>=0.7.0, ProcessWire>=2.5.18, PHP>=5.4.0',
         );
     }
     
@@ -45,22 +45,21 @@ class FrontendUserLogin extends WireData implements Module {
      * module initialization, required by module interface
      */
     public function init() {
+        $this->buildLoginForm();    // Build login form
+        $this->loadCssJs();         // Load CSS / JS custom or default files
+        //
         // previous visited page
         $history = $this->session->getHistory();
         $this->previousPage = end($history)['url'];
-        
-        // Load CSS / JS custom or default files
-        $this->loadCssJs();
     }
     
     // js / css handling aus FrontendUser.class.php übernehmen !!!
     
-    public function login($redirect = null) {
+    public function ___login($redirect = null) {
         $redirect = ($redirect ? $redirect : $this->previousPage);
-        $this->buildLoginForm();
         
         if($this->form->fhProcessForm()) {
-            $result = $this->pwLogin();
+            $result = $this->auth($this->user, $this->pass);
             if ($result === true) {
                 $this->session->redirect($redirect, false);     // Login sucessful
             }
@@ -68,7 +67,7 @@ class FrontendUserLogin extends WireData implements Module {
                 $this->form->fhSubmitBtn->error($result);       // login error / login throttle       
             }
         }
-        return $this->form;
+        return $this->form->render();
     }
 
         /**
@@ -85,9 +84,9 @@ class FrontendUserLogin extends WireData implements Module {
      * Execute login with error handling
      * @return true|string True if sucessfully logged in or an error message
      */
-    protected function ___pwLogin() {
+    protected function ___auth($user, $pass) {
         try {
-            $result = $this->session->login($this->user, $this->pass);
+            $result = $this->session->login($user, $pass);
             if ($result instanceof User) {
                 return true;
             }
@@ -120,7 +119,7 @@ class FrontendUserLogin extends WireData implements Module {
         $field->attr('id+name', 'username');
         $field->required = 1;
         $field->fhSanitizer = 'username';
-        $field->addHook('fhCallbackProcessed', function($event) {
+        $field->addHookAfter('processInput', function($event) {
             $field = $event->object;
             $this->user = $this->form->fhValue($field->name);
         });
@@ -138,14 +137,25 @@ class FrontendUserLogin extends WireData implements Module {
         $field->attr('id+name', 'password');
         $field->attr('type','password');
         $field->required = 1;
-        $field->addHook('fhCallbackProcessed', function($event) {
+        $field->addHookAfter('processInput', function($event) {
             $field = $event->object;
             $this->pass = $field->value;
+        });
+        $field->addHookBefore('render', function($event) {
+            $field = $event->object;
             $field->value = '';
         });
         return $field;
     }
     
+    /**
+     * Set / get class attributes
+     */
+    public function attr($key, $value = null) {
+        if ($value === null) return $this->$key;
+        $this->$key = $value;
+    }
+
     /**
      * Load custom or default module styles / scripts
      */
@@ -155,18 +165,18 @@ class FrontendUserLogin extends WireData implements Module {
     }
     
     /**
-     * 
+     * Load custom or default CSS / JS file
      * @param string $file Filename to load
      * @param string $type File type scripts or styles
      */
     protected function getCssJs($file, $type) {
         $custom = $this . '/' . $file;
         if (file_exists($this->config->paths->templates . $custom)) {
-            $this->config->$type->add($this->config->urls->templates . $custom);
+            $file = $this->config->urls->templates . $custom;
         }
         else {
-            $defaultFile = "{$this->config->urls->FrontendUserLogin}{$type}/$file";
-            $this->config->$type->add($defaultFile);
+            $file = "{$this->config->urls->FrontendUserLogin}/$file";
         }
+        $this->config->$type->add($file);
     }
 }
