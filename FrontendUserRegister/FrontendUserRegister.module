@@ -14,7 +14,10 @@
  * http://www.processwire.com
  * http://www.ryancramer.com
  */
-class FrontendUserRegister extends WireData implements Module {
+
+require_once(__DIR__.'/../FrontendUser/FrontendUser.class.php');
+
+class FrontendUserRegister extends FrontendUser {
     /**
      * getModuleInfo is a module required by all modules to tell ProcessWire about them
      * 
@@ -28,37 +31,46 @@ class FrontendUserRegister extends WireData implements Module {
             'requires'  => 'FormHelper>=0.7.0, ProcessWire>=2.5.18, PHP>=5.4.0',
         );
     }
-   
-    /** @var InputfieldForm PW form object extended by FormHelper */
-    protected $form;
     
-    /** @var User PW user object to collect the register information */
-    protected $userObj;
-    
-    /** @var string Previously visited page */
-    protected $previousPage;
-
+    /**
+     * module initialization, required by module interface
+     */
     public function init() {
-        $this->buildRegisterForm();     // Build register form
-        $this->loadCssJs();             // Load CSS / JS custom or default files
         $this->userObj = new User();    // Create User object
+        $this->previousPage();          // referer page
+    }
 
-        // previous visited page
-        $history = $this->session->getHistory();
-        $this->previousPage = end($history)['url'];
+    /**
+     * Build form with fields
+     * @param array $fields Array of form fields
+     */
+    public function form($fields = array('username', 'email', 'password')) {
+        $this->buildForm($fields);  // Build basic form
+        $this->form->attr('id+name', 'fuRegisterForm');
+        $this->form->fhSubmitBtn->attr('value', $this->_('Register'));
+        return $this;
     }
     
-    public function ___register($redirect = null) {
+    /**
+     * Check / process register with validated form input
+     * @param string $redirect Redirect destination url
+     */
+    public function register($redirect = null) {
         $redirect = ($redirect ? $redirect : $this->previousPage);
-        
-        if($this->form->fhProcessForm() && !empty($this->saveUser($this->userObj))) {
-            $this->session->redirect($redirect, false);
+        if ($this->form->fhState()) {
+            if ($this->saveUser($this->userObj)) {
+                $this->session->redirect($redirect, false);     // User sucessfully registered
+            }
+            else {
+                $this->form->fhSubmitBtn->error($this->_('Register process unexpected failed!'));       // Save user failed?
+            }
         }
-        return $this->form->render();
+        return $this;
     }
-        
+    
     /**
      * Save the temp User object
+     * @param User $user Temp User object to save
      * @return User Saved User object or false
      */
     protected function ___saveUser($user) {
@@ -67,25 +79,12 @@ class FrontendUserRegister extends WireData implements Module {
         }
         return false;
     }
-   
-    /**
-     * Build the register form with basic fields
-     * @return object Processwire form object
-     */
-    protected function buildRegisterForm() {
-        $this->form = $this->modules->get('FormHelper')->create();
-        $this->form->attr('id+name', 'fuRegisterForm');
-        $this->form->fhSubmitBtn->attr('value', $this->_('Register'));
-        $this->form->add($this->fieldUsername());
-        $this->form->add($this->fieldEmail());
-        $this->form->add($this->fieldPassword());
-    }
     
     /**
      * Username form field
-     * @return object Username field
+     * @return InputfieldText Username field
      */
-    protected function fieldUsername() {
+    protected function username() {
         $field = $this->modules->get('InputfieldText');
         $field->label = $this->_('Username');
         $field->attr('id+name', 'username');
@@ -108,9 +107,9 @@ class FrontendUserRegister extends WireData implements Module {
     
     /**
      * Email form field
-     * @return object Email field
+     * @return InputfieldEmail Email field
      */
-    protected function fieldEmail() {
+    protected function email() {
         $field = $this->modules->get('InputfieldEmail');
         $field->label = $this->_('Email');
         $field->attr('id+name', 'email');
@@ -132,9 +131,9 @@ class FrontendUserRegister extends WireData implements Module {
     
     /**
      * Password form field
-     * @return object Password field
+     * @return InputfieldPassword Password field
      */
-    protected function fieldPassword() {
+    protected function password() {
         $field = $this->modules->get('InputfieldPassword');
         $field->label = $this->_('Password');
         $field->attr('id+name', 'password');
@@ -148,37 +147,5 @@ class FrontendUserRegister extends WireData implements Module {
             $field->value = '';
         });
         return $field;
-    }
-    
-    /**
-     * Set / get class attributes
-     */
-    public function attr($key, $value = null) {
-        if ($value === null) return $this->$key;
-        $this->$key = $value;
-    }
-    
-    /**
-     * Load custom or default module styles / scripts
-     */
-    protected function loadCssJs() {
-        $this->getCssJs("{$this}.css", 'styles');
-        $this->getCssJs("{$this}.js", 'scripts');
-    }
-    
-    /**
-     * Load custom or default CSS / JS file
-     * @param string $file Filename to load
-     * @param string $type File type scripts or styles
-     */
-    protected function getCssJs($file, $type) {
-        $custom = $this . '/' . $file;
-        if (file_exists($this->config->paths->templates . $custom)) {
-            $file = $this->config->urls->templates . $custom;
-        }
-        else {
-            $file = "{$this->config->urls->FrontendUserLogin}/$file";
-        }
-        $this->config->$type->add($file);
     }
 }
