@@ -52,10 +52,10 @@ class FrontendUserRegister extends FrontendUser {
     }
     
     /**
-     * Check / process register with validated form input
+     * Process user register with validated form input
      * @param string $redirect Redirect destination url
      */
-    public function register($redirect = null) {
+    public function process($redirect = null) {
         $redirect = ($redirect ? $redirect : $this->previousPage);
         if ($this->form->fhState()) {
             if ($this->saveUser($this->userObj)) {

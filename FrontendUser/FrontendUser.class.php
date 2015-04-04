@@ -25,7 +25,20 @@ abstract class FrontendUser extends WireData implements Module {
         return $this;
     }
     
-    public function render() {
+    /**
+     * Shortcut to build, validate, process and render form
+     * @return html Rendered form
+     */
+    public function render($redirect = null) {
+        $this->form()->validate()->process($redirect);
+        return $this->form->render();
+    }
+
+    /**
+     * Render current form
+     * @return html Rendered form
+     */
+    public function renderForm() {
         return $this->form->render();
     }
     

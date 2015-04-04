@@ -52,10 +52,10 @@ class FrontendUserLogin extends FrontendUser {
     }
     
     /**
-     * Check / process login with validated form input
+     * Process user login with validated form input
      * @param string $redirect Redirect destination url
      */
-    public function login($redirect = null) {
+    public function process($redirect = null) {
         $redirect = ($redirect ? $redirect : $this->previousPage);
         if ($this->form->fhState()) {
             $result = $this->auth($this->userObj->name, $this->userObj->pass);
