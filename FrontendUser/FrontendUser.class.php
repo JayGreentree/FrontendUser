@@ -18,7 +18,6 @@
 abstract class FrontendUser extends WireData implements Module {
     protected $userObj;
     protected $form;
-    protected $previousPage;
 
     public function validate() {
         $this->form->fhProcessForm();
@@ -31,14 +30,14 @@ abstract class FrontendUser extends WireData implements Module {
      */
     public function render($redirect = null) {
         $this->form()->validate()->process($redirect);
-        return $this->form->render();
+        return $this->renderForm();
     }
 
     /**
      * Render current form
      * @return html Rendered form
      */
-    public function renderForm() {
+    public function ___renderForm() {
         return $this->form->render();
     }
     
@@ -47,11 +46,6 @@ abstract class FrontendUser extends WireData implements Module {
         $this->$key = $value;
     }
     
-    protected function previousPage() {
-        $history = $this->session->getHistory();
-        $this->previousPage = end($history)['url'];
-    }
-
     protected function buildForm($fields = null) {
         $this->form = $this->modules->get('FormHelper')->create();
         

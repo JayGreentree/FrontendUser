@@ -28,7 +28,7 @@ class FrontendUserRegister extends FrontendUser {
             'title' => 'FrontendUserRegister',
             'summary' => 'Frontend to register users',
             'version' => '050',
-            'requires'  => 'FormHelper>=0.7.0, ProcessWire>=2.5.18, PHP>=5.4.0',
+            'requires'  => 'FormHelper>=0.7.0, ProcessWire>=2.5.18',
         );
     }
     
@@ -37,7 +37,6 @@ class FrontendUserRegister extends FrontendUser {
      */
     public function init() {
         $this->userObj = new User();    // Create User object
-        $this->previousPage();          // referer page
     }
 
     /**
@@ -56,9 +55,8 @@ class FrontendUserRegister extends FrontendUser {
      * @param string $redirect Redirect destination url
      */
     public function process($redirect = null) {
-        $redirect = ($redirect ? $redirect : $this->previousPage);
         if ($this->form->fhState()) {
-            if ($this->saveUser($this->userObj)) {
+            if ($this->saveUser($this->userObj) && !empty($redirect)) {
                 $this->session->redirect($redirect, false);     // User sucessfully registered
             }
             else {
