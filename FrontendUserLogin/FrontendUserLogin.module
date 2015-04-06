@@ -55,7 +55,7 @@ class FrontendUserLogin extends FrontendUser {
      * @param string $redirect Redirect destination url
      */
     public function process($redirect = null) {
-        if ($this->form->fhState()) {
+        if ($this->form->fhState) {
             $result = $this->auth($this->userObj->name, $this->userObj->pass);
             if ($result === true && !empty($redirect)) {
                 $this->session->redirect($redirect, false);     // Login sucessful
