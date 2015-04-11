@@ -56,12 +56,12 @@ class FrontendUserRegister extends FrontendUser {
      */
     public function process($redirect = null) {
         if ($this->form->fhState) {
-            if ($this->saveUser($this->userObj) && !empty($redirect)) {
+            if ($this->saveUser($this->userObj) === true) {
                 $this->session->redirect($redirect, false);     // User sucessfully registered
             }
             else {
                 $this->form->fhSubmitBtn->error($this->_('Register process unexpected failed!'));       // Save user failed?
-            }
+            }        
         }
         return $this;
     }
@@ -69,13 +69,13 @@ class FrontendUserRegister extends FrontendUser {
     /**
      * Save the temp User object
      * @param User $user Temp User object to save
-     * @return User Saved User object or false
+     * @return boolean Sucessful (true) saved or not (false)
      */
     protected function ___saveUser($user) {
-        if ($user->save()) {
-            return $user;
+        if (empty($user->name) || empty($user->email) || $user->pass->hash == '') {
+            return false;   // Missing required user values (name, email, pass)
         }
-        return false;
+        return $user->save();
     }
     
     /**

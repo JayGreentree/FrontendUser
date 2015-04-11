@@ -51,7 +51,10 @@ abstract class FrontendUser extends WireData implements Module {
         
         $fields = ($fields ? $fields : array('username', 'email', 'password'));
         foreach ($fields as $field) {
-            $this->form->add($this->$field());
+            if (is_string($field)) {
+                $field = $this->$field();
+            }
+            $this->form->add($field);
         }
         $this->loadCssJs();         // Load CSS / JS custom or default files
     }
