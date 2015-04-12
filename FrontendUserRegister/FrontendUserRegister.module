@@ -28,7 +28,7 @@ class FrontendUserRegister extends FrontendUser {
             'title' => 'FrontendUserRegister',
             'summary' => 'Frontend to register users',
             'version' => '050',
-            'requires'  => 'FormHelper>=0.7.0, ProcessWire>=2.5.18',
+            'requires'  => 'FormHelper>=0.7.0',
         );
     }
     

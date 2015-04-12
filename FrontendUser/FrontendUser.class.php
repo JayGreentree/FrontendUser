@@ -70,7 +70,7 @@ abstract class FrontendUser extends WireData implements Module {
             $file = $this->config->urls->templates . $custom;
         }
         else {
-            $file = "{$this->config->urls->FrontendUserLogin}/$file";
+            $file = "{$this->config->urls->siteModules}FrontendUser/{$this}/$file";
         }
         $this->config->$type->add($file);
     }

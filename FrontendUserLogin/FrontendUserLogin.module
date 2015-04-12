@@ -28,7 +28,7 @@ class FrontendUserLogin extends FrontendUser {
             'title' => 'FrontendUserLogin',
             'summary' => 'Login and logout frontend users',
             'version' => '060',
-            'requires'  => 'FormHelper>=0.7.0, ProcessWire>=2.5.18',
+            'requires'  => 'FormHelper>=0.7.0',
         );
     }
 
