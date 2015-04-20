@@ -29,16 +29,19 @@ class FrontendUser extends WireData implements Module {
         );
     }
     
+    /** @var object Temp User object to store values */
     protected $userObj;
+    
+    /** @var InputfieldForm PW form object */
     protected $form;
+    
+    /** @var string Option "Login" or "Register" */
     protected $action;
     
     /**
      * module initialization, required by module interface
      */
-    public function init() {
-        
-    }
+    public function init() { }
     
     /**
      * Build login form
@@ -99,7 +102,7 @@ class FrontendUser extends WireData implements Module {
                 $this->session->redirect($redirect, false);     // User sucessfully registered
             }
             else {
-                $this->form->fhSubmitBtn->error($this->_('Register process unexpected failed!'));       // Save user failed?
+                $this->form->fhSubmitBtn->error($result);       // Save user failed?
             }        
         }
         return $this;
@@ -148,14 +151,12 @@ class FrontendUser extends WireData implements Module {
      */
     protected function ___save($user) {
         if (empty($user->name) || empty($user->email) || $user->pass->hash == '') {
-            return false;   // Missing required user values (name, email, pass)
+            return $this->_('Register process unexpected failed!');
         }
         if ($user->save()) {
             return true;
         }
-        else {
-            return $this->_('Register user failed!');
-        }
+        return $this->_('User registration failed!');
     }
 
     /**
