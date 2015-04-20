@@ -1,19 +1,11 @@
 # FrontendUser module #
 
-## Repository ##
+**FrontendUser** is a Processwire CMS / CMF module and provides basic login, logout and registration functionality. It's extendable with plugins by using Processwire hooks.
 
-[Source code at Bitbucket](https://bitbucket.org/pwFoo/frontenduser/overview)
-[Processwire module repository]()
+## Documentation and support ##
 
-## Documentation ##
-
-https://bitbucket.org/pwFoo/frontenduser/wiki/Home
-
-## Support ##
-
-[Issues](https://bitbucket.org/pwFoo/frontenduser/issues?status=new&status=open)
-[Support Forum]()
-
-## Download ##
-
-[Current master commit](https://bitbucket.org/pwFoo/frontenduser/get/master.zip)
+* [News](https://bitbucket.org/pwFoo/frontenduser/wiki/News)
+* [Documentation](https://bitbucket.org/pwFoo/frontenduser/wiki/Documentation)
+* [Issues](https://bitbucket.org/pwFoo/frontenduser/issues?status=new&status=open) and Processwire support forum
+* [Source code](https://bitbucket.org/pwFoo/frontenduser/src/master)
+* [Download current release](https://bitbucket.org/pwFoo/frontenduser/get/master.zip)
