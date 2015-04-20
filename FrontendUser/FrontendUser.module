@@ -1,0 +1,304 @@
+<?php
+/**
+ * Processwire 'FrontendUser' module
+ * 
+ * Frontend user login, logout and registration.
+ * 
+ * @author pwFoo
+ * @since 2015-04-15
+ * 
+ * ProcessWire 2.x
+ * Copyright (C) 2011 by Ryan Cramer
+ * Licensed under GNU/GPL v2, see LICENSE.TXT
+ *
+ * http://www.processwire.com
+ * http://www.ryancramer.com
+ */
+class FrontendUser extends WireData implements Module {
+    /**
+     * getModuleInfo is a module required by all modules to tell ProcessWire about them
+     * 
+     * @return array
+     */
+    public static function getModuleInfo() {
+        return array(
+            'title' => 'FrontendUser',
+            'summary' => 'Frontend user login, logout and registration',
+            'version' => '080',
+            'requires'  => 'FormHelper>=0.7.0',
+        );
+    }
+    
+    protected $userObj;
+    protected $form;
+    protected $action;
+    
+    /**
+     * module initialization, required by module interface
+     */
+    public function init() {
+        
+    }
+    
+    /**
+     * Build login form
+     * @param array $fields Optional field with initial form fields
+     */
+    public function login ($fields = array('username', 'password')) {
+        $this->userObj = new stdClass();    // Create a object to store login credentials
+        $this->action = 'Login';
+        $this->buildForm($fields);
+        
+        // Set form attributes
+        $this->form->attr('id+name', 'fuLoginForm');
+        $this->form->fhSubmitBtn->attr('value', $this->_('Login'));
+        
+        return $this;
+    }
+    
+    /**
+     * Build registration form
+     * @param array $fields Optional field with initial form fields
+     */
+    public function register ($fields = array('username', 'email', 'password')) {
+        $this->userObj = new User();    // Create temp User object to store input
+        $this->action = 'Register';
+        $this->buildForm($fields);
+        
+        // Set form attributes
+        $this->form->attr('id+name', 'fuRegisterForm');
+        $this->form->fhSubmitBtn->attr('value', $this->_('Register'));
+        
+        return $this;
+    }
+
+    /**
+     * Logout and redirect guest
+     * @param string $redirect Redirect destination URL
+     */
+    public function ___logout ($redirect) {
+        $this->session->logout();
+        $this->session->redirect($redirect, false);
+    }
+    
+    /**
+     * Process user register with validated form input
+     * @param string $redirect Redirect destination url
+     */
+    public function process($redirect) {
+        if ($this->form->fhProcessForm()) {
+            switch ($this->action) {
+                case 'Login':
+                    $result = $this->auth($this->userObj);
+                  break;
+                case 'Register':
+                    $result = $this->save($this->userObj);
+                  break;
+            }
+            if ($result === true) {
+                $this->session->redirect($redirect, false);     // User sucessfully registered
+            }
+            else {
+                $this->form->fhSubmitBtn->error($this->_('Register process unexpected failed!'));       // Save user failed?
+            }        
+        }
+        return $this;
+    }
+
+    /**
+     * Render current form
+     * @return html Rendered form
+     */
+    public function render() {
+        return $this->form->render();
+    }
+    
+    /** 
+     * Get / set class attributes
+     * @param string $key Name of the class variable
+     * @param variable $value Optional new value to set
+     */
+    public function attr($key, $value = null) {
+        if ($value === null) return $this->$key;
+        $this->$key = $value;
+    }
+    
+    /**
+     * Execute login with error handling
+     * @param object $user User object with login name and password
+     * @return true|string True if sucessfully logged in or an error message
+     */
+    protected function ___auth($user) {
+        try {
+            $result = $this->session->login($user->name, $user->pass);
+            if ($result instanceof User) {
+                return true;
+            }
+            return $this->_('Login failed!');
+        }
+        catch(Exception $e) {
+            return $e->getMessage();
+        }
+    }
+    
+    /**
+     * Save the temp User object
+     * @param User $user Temp User object to save
+     * @return boolean Sucessful (true) saved or not (false)
+     */
+    protected function ___save($user) {
+        if (empty($user->name) || empty($user->email) || $user->pass->hash == '') {
+            return false;   // Missing required user values (name, email, pass)
+        }
+        if ($user->save()) {
+            return true;
+        }
+        else {
+            return $this->_('Register user failed!');
+        }
+    }
+
+    /**
+     * Build form with fields
+     * @param array $fields Array of form fields
+     */
+    protected function buildForm($fields) {
+        $this->form = $this->modules->get('FormHelper')->create();
+
+        foreach ($fields as $field) {
+            if (is_string($field)) {
+                $funcName = "{$field}{$this->action}";
+                $field = $this->$funcName();
+            }
+            $this->form->add($field);
+        }
+        // Load custom or default styles and scripts
+        $this->getCssJs("{$this}{$this->action}.css", 'styles');
+        $this->getCssJs("{$this}{$this->action}.js", 'scripts');
+    }
+    
+    /**
+     * Load custom or default styles / scripts
+     * @param string $file Filename to load
+     * @param string $type File type styles or scripts
+     */
+    protected function getCssJs($file, $type) {
+        $custom = $this . '/' . $file;
+        if (file_exists($this->config->paths->templates . $custom)) {
+            $file = $this->config->urls->templates . $custom;
+        }
+        else {
+            $file = "{$this->config->urls->$this}{$type}/$file";
+        }
+        $this->config->$type->add($file);
+    }
+
+    /**
+     * Build username form field
+     * @return InputfieldText Form field username
+     */
+    protected function usernameLogin() {
+        $field = $this->modules->get('InputfieldText');
+        $field->skipLabel = 4; // Inputfield::skipLabelBlank;
+        $field->placeholder = $this->_('Username');
+        $field->attr('id+name', 'username');
+        $field->required = 1;
+        $field->fhSanitizer = 'username';
+        $field->addHookAfter('processInput', function($event) {
+            $field = $event->object;
+            $this->userObj->name = $this->form->fhValue($field->name);
+        });
+        return $field;
+    }
+    
+    /**
+     * Build password form field with additional type password 
+     * @return InputfieldText Form field password
+     */
+    protected function passwordLogin() {
+        $field = $this->modules->get('InputfieldText');
+        $field->skipLabel = 4; // Inputfield::skipLabelBlank;
+        $field->placeholder = $this->_('Password');
+        $field->attr('id+name', 'password');
+        $field->attr('type','password');
+        $field->required = 1;
+        $field->addHookAfter('processInput', function($event) {
+            $field = $event->object;
+            $this->userObj->pass = $field->value;
+        });
+        $field->addHookBefore('render', function($event) {
+            $field = $event->object;
+            $field->value = '';
+        });
+        return $field;
+    }
+    
+    /**
+     * Username form field
+     * @return InputfieldText Username field
+     */
+    protected function usernameRegister() {
+        $field = $this->modules->get('InputfieldText');
+        $field->label = $this->_('Username');
+        $field->attr('id+name', 'username');
+        $field->required = 1;
+        $field->fhSanitizer = 'username';
+        $field->addHookAfter('processInput', function($event) {
+            $field = $event->object;
+            $username = $this->form->fhValue($field->name);
+            
+            if (empty($username))   return;
+            elseif (wire('users')->count("name={$username}") == 0) {
+                $this->userObj->name = $username;
+            }
+            else {
+                $field->error(__('Username already taken!'));  
+            }
+        });
+        return $field;
+    }
+    
+    /**
+     * Email form field
+     * @return InputfieldEmail Email field
+     */
+    protected function emailRegister() {
+        $field = $this->modules->get('InputfieldEmail');
+        $field->label = $this->_('Email');
+        $field->attr('id+name', 'email');
+        $field->required = 1;
+        $field->addHookAfter('processInput', function($event) {
+            $field = $event->object;
+            $email = $this->form->fhValue($field->name);
+            
+            if (empty($email))  return;
+            elseif (wire('users')->count("email={$email}") == 0) {
+                $this->userObj->email = $email;
+            }
+            else {
+                $field->error(__('Email address already taken!'));
+            }
+        });
+        return $field;
+    }
+    
+    /**
+     * Password form field
+     * @return InputfieldPassword Password field
+     */
+    protected function passwordRegister() {
+        $field = $this->modules->get('InputfieldPassword');
+        $field->label = $this->_('Password');
+        $field->attr('id+name', 'password');
+        $field->required = 1;
+        $field->addHookAfter('processInput', function($event) {
+            $field = $event->object;
+            $this->userObj->pass = $field->value;
+        });
+        $field->addHookBefore('render', function($event) {
+            $field = $event->object;
+            $field->value = '';
+        });
+        return $field;
+    }
+}

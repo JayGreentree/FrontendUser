@@ -1,51 +1,19 @@
-# FrontendUser
+# FrontendUser module #
 
-## FrontendUserLogin
+## Repository ##
 
-**simple example**
-```
-#!php
-// login
-echo $modules->get('FrontendUserLogin')->render($redirectAfterLogin);
+[Source code at Bitbucket](https://bitbucket.org/pwFoo/frontenduser/overview)
+[Processwire module repository]()
 
-// register
-echo $modules->get('FrontendUserRegister')->render($redirectAfterRegister);
-```
+## Documentation ##
 
-**advanced usage**
-```
-#!php
-$fu = $modules->get('FrontendUserLogin');
-$fu->form();
+https://bitbucket.org/pwFoo/frontenduser/wiki/Home
 
-// plugin here...
+## Support ##
 
-$fu->validate();
-$fu->process($redirect);
-$fu->renderForm();
-```
+[Issues](https://bitbucket.org/pwFoo/frontenduser/issues?status=new&status=open)
+[Support Forum]()
 
-## FrontendUserRegister
+## Download ##
 
-**simple example**
-```
-#!php
-$fu = $modules->get('FrontendUserRegister');
-$fu->render($redirectAfterRegister);
-```
-
-**advanced usage**
-Add a default role to the user (plugin / PW hook).
-```
-#!php
-$fu = $modules->get('FrontendUserRegister');
-$form = $fu->form();
-
-$fu->addHookBefore('saveUser', function($event) {
-    $user = $event->object->attr('userObj');
-    $user->addRole('superuser');
-});
-
-$content = $fu->validate()->process()->renderForm();
-```
-
+[Current master commit](https://bitbucket.org/pwFoo/frontenduser/get/master.zip)
