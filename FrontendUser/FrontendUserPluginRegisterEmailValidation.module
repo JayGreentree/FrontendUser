@@ -1,0 +1,135 @@
+<?php
+/**
+ * Processwire 'FrontendUserPluginRegisterEmailValidation' module
+ * 
+ * Extends FrontendUser user registration with an email pre-register validation.
+ * 
+ * @author pwFoo
+ * @since 2015-04-28
+ * 
+ * ProcessWire 2.x
+ * Copyright (C) 2011 by Ryan Cramer
+ * Licensed under GNU/GPL v2, see LICENSE.TXT
+ *
+ * http://www.processwire.com
+ * http://www.ryancramer.com
+ */
+class FrontendUserPluginRegisterEmailValidation extends WireData implements Module {
+    /**
+     * getModuleInfo is a module required by all modules to tell ProcessWire about them
+     * 
+     * @return array
+     */
+    public static function getModuleInfo() {
+        return array(
+            'title' => 'FrontendUserPluginRegisterEmailValidation',
+            'summary' => 'Extends FrontendUser user registration with an email pre-register validation',
+            'version' => '001',
+            'requires'  => 'FrontendUser',
+        );
+    }
+    
+    /**
+     * module initialization, required by module interface
+     */
+    public function init() { }
+    
+    /**
+     * Set the plugin hooks
+     * @param object $fu FrontendUser object
+     */
+    public function hook($fu) {
+        $form = $fu->attr('form');
+        $form->addhookBefore('processInput', $this, 'hookRegisterFormBeforeProcess');
+        $form->addhookAfter('processInput', $this, 'hookRegisterFormAfterProcess');
+        $form->addhookBefore('render', $this, 'hookRegisterFormBeforeRender');
+        $form->insertAfter($this->validationCodeField(), $form->get('email'));
+    }
+    
+    /**
+     * Additional registration form field to process email validation
+     * @return Inputfield PW form field
+     */
+    protected function validationCodeField() {
+        $validation = wire('modules')->get('InputfieldText');
+        $validation->attr('id+name', 'EmailPreValidation');
+        $validation->placeholder = 'Email validation code';
+        $validation->skipLabel = 4;
+        $validation->required = 1;
+        return $validation;
+    }
+    
+    /**
+     * Initial form manipulation before form process
+     * @param hookEvent $event
+     */
+    protected function hookRegisterFormBeforeProcess($event) {
+        $form = $event->object;
+        //var_dump(wire('input')->post); echo "<hr />";
+        if (empty(wire('session')->get('registerStep'))) {
+            $form->get('password')->required = false;
+            $form->get('EmailPreValidation')->required = false;
+        }
+    }
+
+    /**
+     * Email validation code handling after form process
+     * @param hookEvent $event
+     */
+    protected function hookRegisterFormAfterProcess($event) {
+        $form = $event->object;
+        $user = $form->get('username');
+        $email = $form->get('email');
+    
+        if (!empty(wire('session')->get('registerStep')) && wire('session')->get('registerEmail') !== $form->fhValue('email')) {
+            wire('session')->remove('registerStep');
+            $form->get('EmailPreValidation')->value = '';
+            $form->fhSubmitBtn->error('Validation broken by email address mismatch!');
+            wire('session')->redirect(wire('page')->url, false);
+        }
+        elseif (empty(wire('session')->get('registerStep')) && !count($user->getErrors()) && !count($email->getErrors())) {
+            //echo "SET Session values!<br />";
+            wire('session')->set('registerToken', md5(uniqid(mt_rand(), true)));
+            wire('session')->set('registerUsername', $form->fhValue('username'));
+            wire('session')->set('registerEmail', $form->fhValue('email'));
+            wire('session')->set('registerStep', 1);
+
+            // Send validation code email
+            wireMail($form->fhValue('email'), null, 'Email address pre-validation', "Validation token: " . wire('session')->get('registerToken'));        
+        }
+        elseif (!count($user->getErrors()) && !count($email->getErrors())) {
+            if ($form->fhValue('EmailPreValidation') != wire('session')->get('registerToken')) {
+                $form->get('EmailPreValidation')->error('Email validation code NOT match!');
+            }
+        }
+    }
+
+    /**
+     * Check registration state before form render
+     * @param hookEvent $event
+     */
+    protected function hookRegisterFormBeforeRender($event) {
+        $form = $event->object;
+    
+        if ($form->fhState === null) {
+            wire('session')->remove('registerStep');
+        }
+        elseif (wire('session')->get('registerStep') === 1) {
+            $form->fhSubmitBtn->getErrors(true);
+        }
+    
+        if (empty(wire('session')->get('registerStep'))) {
+            $form->remove($form->get('password'));
+            $form->get('EmailPreValidation')->attr('disabled', true);
+            $form->fhSubmitBtn->value = 'Send email validation code';
+            //echo "RESET Session values!<br />";
+            wire('session')->remove('registerToken');
+            wire('session')->remove('registerUsername');
+            wire('session')->remove('registerEmail');
+        }
+        //echo "RegisterStep: " . wire('session')->get('registerStep') . "<br />";
+        //echo "Username: " . wire('session')->get('registerUsername') . "<br />";
+        //echo "Email: " . wire('session')->get('registerEmail') . " == " . $form->fhValue('email') . "<br />";
+        //echo "Token: " . wire('session')->get('registerToken') . "<br />";
+    }
+}
