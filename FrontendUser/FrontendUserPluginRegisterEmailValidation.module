@@ -95,7 +95,7 @@ class FrontendUserPluginRegisterEmailValidation extends WireData implements Modu
             wire('session')->set('registerStep', 1);
 
             // Send validation code email
-            wireMail($form->fhValue('email'), null, 'Email address pre-validation', "Validation token: " . wire('session')->get('registerToken'));        
+            wireMail($form->fhValue('email'), null, 'Email address pre-validation', "Validation token: " . wire('session')->get('registerToken') . "\n http://192.168.200.3/pw/register/?registerToken=" . wire('session')->get('registerToken'));        
         }
         elseif (!count($user->getErrors()) && !count($email->getErrors())) {
             if ($form->fhValue('EmailPreValidation') != wire('session')->get('registerToken')) {
@@ -111,7 +111,12 @@ class FrontendUserPluginRegisterEmailValidation extends WireData implements Modu
     protected function hookRegisterFormBeforeRender($event) {
         $form = $event->object;
     
-        if ($form->fhState === null) {
+        if (wire('input')->get('registerToken') === wire('session')->get('registerToken')) {
+            $form->get('username')->value = wire('session')->get('registerUsername');
+            $form->get('email')->value = wire('session')->get('registerEmail');
+            $form->get('EmailPreValidation')->value = wire('session')->get('registerToken');
+        }
+        elseif ($form->fhState === null) {
             wire('session')->remove('registerStep');
         }
         elseif (wire('session')->get('registerStep') === 1) {
