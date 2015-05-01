@@ -112,7 +112,7 @@ class FrontendUser extends WireData implements Module {
      * Render current form
      * @return html Rendered form
      */
-    public function render() {
+    public function ___render() {
         return $this->form->render();
     }
     

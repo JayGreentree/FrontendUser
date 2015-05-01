@@ -38,8 +38,7 @@ class FrontendUserPluginRegisterEmailValidation extends WireData implements Modu
      * Set the plugin hooks
      * @param object $fu FrontendUser object
      */
-    public function hook($fu) {
-        $form = $fu->attr('form');
+    public function hook($form) {
         $form->addhookBefore('processInput', $this, 'hookRegisterFormBeforeProcess');
         $form->addhookAfter('processInput', $this, 'hookRegisterFormAfterProcess');
         $form->addhookBefore('render', $this, 'hookRegisterFormBeforeRender');
@@ -53,7 +52,7 @@ class FrontendUserPluginRegisterEmailValidation extends WireData implements Modu
     protected function validationCodeField() {
         $validation = wire('modules')->get('InputfieldText');
         $validation->attr('id+name', 'EmailPreValidation');
-        $validation->placeholder = 'Email validation code';
+        $validation->placeholder = $this->_('Email validation code');
         $validation->skipLabel = 4;
         $validation->required = 1;
         return $validation;
