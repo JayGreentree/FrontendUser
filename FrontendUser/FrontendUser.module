@@ -384,14 +384,16 @@ class FrontendUser extends WireData implements Module {
             wire('session')->redirect(wire('page')->url, false);
         }
         elseif (empty(wire('session')->get('registerStep')) && !count($user->getErrors()) && !count($email->getErrors())) {
-            //echo "SET Session values!<br />";
             wire('session')->set('registerToken', md5(uniqid(mt_rand(), true)));
             wire('session')->set('registerUsername', $form->fhValue('username'));
             wire('session')->set('registerEmail', $form->fhValue('email'));
             wire('session')->set('registerStep', 1);
-
             // Send validation code email
-            wireMail($form->fhValue('email'), null, 'Email address pre-validation', "Validation token: " . wire('session')->get('registerToken') . "\n http://192.168.200.3/pw/register/?registerToken=" . wire('session')->get('registerToken'));        
+            $token = wire('session')->get('registerToken');
+            $url = wire('page')->httpUrl;
+            $subject = 'Email address pre-validation';
+            $content = "Validation token: {$token}\n{$url}?registerToken={$token}";
+            wireMail($form->fhValue('email'), null, $subject , $content);        
         }
         elseif (!count($user->getErrors()) && !count($email->getErrors())) {
             if ($form->fhValue('EmailPreValidation') != wire('session')->get('registerToken')) {
@@ -418,19 +420,14 @@ class FrontendUser extends WireData implements Module {
         elseif (wire('session')->get('registerStep') === 1) {
             $form->fhSubmitBtn->getErrors(true);
         }
-    
         if (empty(wire('session')->get('registerStep'))) {
             $form->remove($form->get('password'));
             $form->get('EmailPreValidation')->attr('disabled', true);
             $form->fhSubmitBtn->value = 'Send email validation code';
-            //echo "RESET Session values!<br />";
+            
             wire('session')->remove('registerToken');
             wire('session')->remove('registerUsername');
             wire('session')->remove('registerEmail');
         }
-        //echo "RegisterStep: " . wire('session')->get('registerStep') . "<br />";
-        //echo "Username: " . wire('session')->get('registerUsername') . "<br />";
-        //echo "Email: " . wire('session')->get('registerEmail') . " == " . $form->fhValue('email') . "<br />";
-        //echo "Token: " . wire('session')->get('registerToken') . "<br />";
     }
 }
