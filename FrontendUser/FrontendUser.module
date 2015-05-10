@@ -24,7 +24,7 @@ class FrontendUser extends WireData implements Module {
         return array(
             'title' => 'FrontendUser',
             'summary' => 'Frontend user login, logout and registration',
-            'version' => '081',
+            'version' => '082',
             'requires'  => 'FormHelper>=0.7.0',
         );
     }
@@ -55,7 +55,7 @@ class FrontendUser extends WireData implements Module {
         // Set form attributes
         $this->form->attr('id+name', 'fuLoginForm');
         $this->form->fhSubmitBtn->attr('value', $this->_('Login'));
-        
+
         return $this;
     }
     
@@ -174,8 +174,11 @@ class FrontendUser extends WireData implements Module {
             $this->form->add($field);
         }
         // Load custom or default styles and scripts
-        $this->getCssJs("{$this}{$this->action}.css", 'styles');
-        $this->getCssJs("{$this}{$this->action}.js", 'scripts');
+        $css = $this->getFile("{$this}{$this->action}.css", 'styles', 'urls');
+        $this->config->styles->add($css);
+        
+        $js = $this->getFile("{$this}{$this->action}.js", 'scripts', 'urls');
+        $this->config->scripts->add($js);
     }
     
     /**
@@ -183,15 +186,15 @@ class FrontendUser extends WireData implements Module {
      * @param string $file Filename to load
      * @param string $type File type styles or scripts
      */
-    protected function getCssJs($file, $type) {
+    protected function getFile($file, $fileType, $type = 'paths') {
         $custom = $this . '/' . $file;
         if (file_exists($this->config->paths->templates . $custom)) {
-            $file = $this->config->urls->templates . $custom;
+            $file = $this->config->$type->templates . $custom;
         }
         else {
-            $file = "{$this->config->urls->$this}{$type}/$file";
+            $file = "{$this->config->$type->$this}{$fileType}/$file";
         }
-        $this->config->$type->add($file);
+        return $file;
     }
 
     /**
@@ -361,7 +364,7 @@ class FrontendUser extends WireData implements Module {
      */
     protected function hookRegisterFormBeforeProcess($event) {
         $form = $event->object;
-        //var_dump(wire('input')->post); echo "<hr />";
+        
         if (empty(wire('session')->get('registerStep'))) {
             $form->get('password')->required = false;
             $form->get('EmailPreValidation')->required = false;
@@ -392,8 +395,14 @@ class FrontendUser extends WireData implements Module {
             $token = wire('session')->get('registerToken');
             $url = wire('page')->httpUrl;
             $subject = 'Email address pre-validation';
-            $content = "Validation token: {$token}\n{$url}?registerToken={$token}";
-            wireMail($form->fhValue('email'), null, $subject , $content);        
+
+            $emailContentHtml = $this->page->render($this->getFile('validationEmailHtml.php', 'templates'), array('token' => $token, 'url' => $url));
+            $emailContentPlain = $this->page->render($this->getFile('validationEmailPlain.php', 'templates'), array('token' => $token, 'url' => $url));
+            
+            $mail = wireMail();
+            $mail->to($form->fhValue('email'))->subject($subject);
+            $mail->body($emailContentPlain)->bodyHTML($emailContentHtml);
+            $mail->send();
         }
         elseif (!count($user->getErrors()) && !count($email->getErrors())) {
             if ($form->fhValue('EmailPreValidation') != wire('session')->get('registerToken')) {
