@@ -99,7 +99,7 @@ class FrontendUserRegisterEmailValidation extends WireData implements Module {
             );
 
             // Load the plain / html email templates
-            $emailContentHtml = wire('page')->render($this->fu->getFile('validationEmailHtml.php', 'templates'), $vars);
+            $emailContentHtml = wire('page')->render($this->fu->getFile('validationEmail.php', 'templates'), $vars);
             $emailContentPlain = preg_replace('/^\h+|\h+$/m', '', strip_tags($emailContentHtml));
             // Get config value
             $subject = $this->subject;
