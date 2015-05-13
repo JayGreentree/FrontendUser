@@ -24,7 +24,7 @@ class FrontendUser extends WireData implements Module {
         return array(
             'title' => 'FrontendUser',
             'summary' => 'Frontend user login, logout and registration',
-            'version' => '082',
+            'version' => '083',
             'requires'  => 'FormHelper>=0.7.0',
         );
     }
@@ -186,7 +186,7 @@ class FrontendUser extends WireData implements Module {
      * @param string $file Filename to load
      * @param string $type File type styles or scripts
      */
-    protected function getFile($file, $fileType, $type = 'paths') {
+    public function getFile($file, $fileType, $type = 'paths') {
         $custom = $this . '/' . $file;
         if (file_exists($this->config->paths->templates . $custom)) {
             $file = $this->config->$type->templates . $custom;
@@ -342,101 +342,11 @@ class FrontendUser extends WireData implements Module {
     }
     
     /**
-     * Plugin email pre-registration validation: form field
+     * Load the plugin email pre-registration validation and get the form field
      * @return Inputfield PW form field
      */
     protected function emailValidationRegister() {
-        $this->form->addhookBefore('processInput', $this, 'hookRegisterFormBeforeProcess');
-        $this->form->addhookAfter('processInput', $this, 'hookRegisterFormAfterProcess');
-        $this->form->addhookBefore('render', $this, 'hookRegisterFormBeforeRender');
-        
-        $validation = wire('modules')->get('InputfieldText');
-        $validation->attr('id+name', 'EmailPreValidation');
-        $validation->placeholder = $this->_('Email validation code');
-        $validation->skipLabel = 4;
-        $validation->required = 1;        
-        return $validation;
-    }
-    
-    /**
-     * Plugin email pre-registration validation: Initial form manipulation before form process
-     * @param hookEvent $event
-     */
-    protected function hookRegisterFormBeforeProcess($event) {
-        $form = $event->object;
-        
-        if (empty(wire('session')->get('registerStep'))) {
-            $form->get('password')->required = false;
-            $form->get('EmailPreValidation')->required = false;
-        }
-    }
-
-    /**
-     * Plugin email pre-registration validation: Email validation code handling after form process
-     * @param hookEvent $event
-     */
-    protected function hookRegisterFormAfterProcess($event) {
-        $form = $event->object;
-        $user = $form->get('username');
-        $email = $form->get('email');
-    
-        if (!empty(wire('session')->get('registerStep')) && wire('session')->get('registerEmail') !== $form->fhValue('email')) {
-            wire('session')->remove('registerStep');
-            $form->get('EmailPreValidation')->value = '';
-            $form->fhSubmitBtn->error('Validation broken by email address mismatch!');
-            wire('session')->redirect(wire('page')->url, false);
-        }
-        elseif (empty(wire('session')->get('registerStep')) && !count($user->getErrors()) && !count($email->getErrors())) {
-            wire('session')->set('registerToken', md5(uniqid(mt_rand(), true)));
-            wire('session')->set('registerUsername', $form->fhValue('username'));
-            wire('session')->set('registerEmail', $form->fhValue('email'));
-            wire('session')->set('registerStep', 1);
-            // Send validation code email
-            $token = wire('session')->get('registerToken');
-            $url = wire('page')->httpUrl;
-            $subject = 'Email address pre-validation';
-
-            $emailContentHtml = $this->page->render($this->getFile('validationEmailHtml.php', 'templates'), array('token' => $token, 'url' => $url));
-            $emailContentPlain = $this->page->render($this->getFile('validationEmailPlain.php', 'templates'), array('token' => $token, 'url' => $url));
-            
-            $mail = wireMail();
-            $mail->to($form->fhValue('email'))->subject($subject);
-            $mail->body($emailContentPlain)->bodyHTML($emailContentHtml);
-            $mail->send();
-        }
-        elseif (!count($user->getErrors()) && !count($email->getErrors())) {
-            if ($form->fhValue('EmailPreValidation') != wire('session')->get('registerToken')) {
-                $form->get('EmailPreValidation')->error('Email validation code NOT match!');
-            }
-        }
-    }
-
-    /**
-     * Plugin email pre-registration validation: Check registration state before form render
-     * @param hookEvent $event
-     */
-    protected function hookRegisterFormBeforeRender($event) {
-        $form = $event->object;
-    
-        if (wire('input')->get('registerToken') === wire('session')->get('registerToken')) {
-            $form->get('username')->value = wire('session')->get('registerUsername');
-            $form->get('email')->value = wire('session')->get('registerEmail');
-            $form->get('EmailPreValidation')->value = wire('session')->get('registerToken');
-        }
-        elseif ($form->fhState === null) {
-            wire('session')->remove('registerStep');
-        }
-        elseif (wire('session')->get('registerStep') === 1) {
-            $form->fhSubmitBtn->getErrors(true);
-        }
-        if (empty(wire('session')->get('registerStep'))) {
-            $form->remove($form->get('password'));
-            $form->get('EmailPreValidation')->attr('disabled', true);
-            $form->fhSubmitBtn->value = 'Send email validation code';
-            
-            wire('session')->remove('registerToken');
-            wire('session')->remove('registerUsername');
-            wire('session')->remove('registerEmail');
-        }
+        $plugin = $this->modules->get('FrontendUserRegisterEmailValidation');
+        return $plugin->emailValidationRegister($this);
     }
 }
