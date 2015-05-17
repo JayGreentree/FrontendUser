@@ -50,16 +50,21 @@ class FrontendUser extends WireData implements Module {
      * @param array $fields Optional field with initial form fields
      * @param string $redirect Optional redirect destination for shorthand call
      */
-    public function login ($fields = array('username', 'password'), $redirect = false) {
+    public function login ($fields = null, $redirect = null) {
         $this->userObj = new stdClass();    // Create a object to store login credentials
         $this->action = 'Login';
+        
+        // create login form
+        if (empty($fields)) {
+            $fields = array('username', 'password');
+        }
         $this->buildForm($fields);
         
         // Set form attributes
         $this->form->attr('id+name', 'fuLoginForm');
         $this->form->fhSubmitBtn->attr('value', $this->_('Login'));
 
-        if ($redirect === false) {
+        if (empty($redirect)) {
             return $this;
         }
         return $this->process($redirect)->render();
@@ -70,16 +75,21 @@ class FrontendUser extends WireData implements Module {
      * @param array $fields Optional field with initial form fields
      * @param string $redirect Optional redirect destination for shorthand call
      */
-    public function register ($fields = array('username', 'email', 'password'), $redirect = false) {
+    public function register ($fields = null, $redirect = null) {
         $this->userObj = new User();    // Create temp User object to store input
         $this->action = 'Register';
+        
+        // create registration form
+        if (empty($fields)) {
+            $fields = array('username', 'email', 'password');
+        }
         $this->buildForm($fields);
         
         // Set form attributes
         $this->form->attr('id+name', 'fuRegisterForm');
         $this->form->fhSubmitBtn->attr('value', $this->_('Register'));
         
-        if ($redirect === false) {
+        if (empty($redirect)) {
             return $this;
         }
         return $this->process($redirect)->render();
