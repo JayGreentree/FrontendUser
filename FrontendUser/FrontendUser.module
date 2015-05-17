@@ -24,7 +24,7 @@ class FrontendUser extends WireData implements Module {
         return array(
             'title' => 'FrontendUser',
             'summary' => 'Frontend user login, logout and registration',
-            'version' => '084',
+            'version' => '085',
             'requires'  => 'FormHelper>=0.7.0',
         );
     }
@@ -42,14 +42,15 @@ class FrontendUser extends WireData implements Module {
      * module initialization, required by module interface
      */
     public function init() {
-        wire()->set('fu', $this);
+        wire()->set('fu', $this);   // make fu instance / object global available
     }
     
     /**
      * Build login form
      * @param array $fields Optional field with initial form fields
+     * @param string $redirect Optional redirect destination for shorthand call
      */
-    public function login ($fields = array('username', 'password')) {
+    public function login ($fields = array('username', 'password'), $redirect = false) {
         $this->userObj = new stdClass();    // Create a object to store login credentials
         $this->action = 'Login';
         $this->buildForm($fields);
@@ -58,14 +59,18 @@ class FrontendUser extends WireData implements Module {
         $this->form->attr('id+name', 'fuLoginForm');
         $this->form->fhSubmitBtn->attr('value', $this->_('Login'));
 
-        return $this;
+        if ($redirect === false) {
+            return $this;
+        }
+        return $this->process($redirect)->render();
     }
     
     /**
      * Build registration form
      * @param array $fields Optional field with initial form fields
+     * @param string $redirect Optional redirect destination for shorthand call
      */
-    public function register ($fields = array('username', 'email', 'password')) {
+    public function register ($fields = array('username', 'email', 'password'), $redirect = false) {
         $this->userObj = new User();    // Create temp User object to store input
         $this->action = 'Register';
         $this->buildForm($fields);
@@ -74,7 +79,10 @@ class FrontendUser extends WireData implements Module {
         $this->form->attr('id+name', 'fuRegisterForm');
         $this->form->fhSubmitBtn->attr('value', $this->_('Register'));
         
-        return $this;
+        if ($redirect === false) {
+            return $this;
+        }
+        return $this->process($redirect)->render();
     }
 
     /**
@@ -116,16 +124,6 @@ class FrontendUser extends WireData implements Module {
      */
     public function ___render() {
         return $this->form->render();
-    }
-    
-    /** 
-     * Get / set class attributes
-     * @param string $key Name of the class variable
-     * @param variable $value Optional new value to set
-     */
-    public function attr($key, $value = null) {
-        if ($value === null) return $this->$key;
-        $this->$key = $value;
     }
     
     /**

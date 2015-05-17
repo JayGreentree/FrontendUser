@@ -37,7 +37,7 @@ class FrontendUserRegisterEmailValidation extends WireData implements Module {
      * @return Inputfield PW form field
      */
     public function emailValidationRegister() {
-        $form = wire('fu')->attr('form');
+        $form = wire('fu')->form;
         $form->addhookBefore('processInput', $this, 'hookRegisterFormBeforeProcess');
         $form->addhookAfter('processInput', $this, 'hookRegisterFormAfterProcess');
         $form->addhookBefore('render', $this, 'hookRegisterFormBeforeRender');
@@ -69,6 +69,7 @@ class FrontendUserRegisterEmailValidation extends WireData implements Module {
      */
     protected function hookRegisterFormAfterProcess($event) {
         $form = $event->object;
+        // ToDo: optimize / sanitize ?
         $user = $form->get('username');
         $email = $form->get('email');
     
@@ -91,7 +92,7 @@ class FrontendUserRegisterEmailValidation extends WireData implements Module {
                 'email'     => wire('session')->get('registerEmail'),
                 'token'     => wire('session')->get('registerToken'),
                 'url'       => wire('page')->httpUrl . '?registerToken=' . wire('session')->get('registerToken'),
-                'content'   => $this->content,  // config variable
+                'content'   => $this->content,  // config variable  // ToDo: Tests with php 5.3
             );
 
             // Load the plain / html email templates
@@ -99,7 +100,7 @@ class FrontendUserRegisterEmailValidation extends WireData implements Module {
             $emailContentHtml = wire('page')->render(wire('fu')->getFile('validationEmail.php', 'templates'), $vars);
             $emailContentPlain = preg_replace('/^\h+|\h+$/m', '', strip_tags($emailContentHtml));
             // Get config value
-            $subject = $this->subject;
+            $subject = $this->subject;  // ToDo: Tests with php 5.3
             
             // send registration token email
             $mail = wireMail();
