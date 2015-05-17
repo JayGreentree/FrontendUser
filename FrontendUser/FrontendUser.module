@@ -24,16 +24,16 @@ class FrontendUser extends WireData implements Module {
         return array(
             'title' => 'FrontendUser',
             'summary' => 'Frontend user login, logout and registration',
-            'version' => '083',
+            'version' => '084',
             'requires'  => 'FormHelper>=0.7.0',
         );
     }
     
     /** @var object Temp User object to store values */
-    protected $userObj;
+    public $userObj;
     
     /** @var InputfieldForm PW form object */
-    protected $form;
+    public $form;
     
     /** @var string Option "Login" or "Register" */
     protected $action;
@@ -41,7 +41,9 @@ class FrontendUser extends WireData implements Module {
     /**
      * module initialization, required by module interface
      */
-    public function init() { }
+    public function init() {
+        wire()->set('fu', $this);
+    }
     
     /**
      * Build login form
@@ -210,7 +212,7 @@ class FrontendUser extends WireData implements Module {
         $field->fhSanitizer = 'username';
         $field->addHookAfter('processInput', function($event) {
             $field = $event->object;
-            $this->userObj->name = $this->form->fhValue($field->name);
+            wire('fu')->userObj->name = wire('fu')->form->fhValue($field->name);
         });
         return $field;
     }
@@ -228,7 +230,7 @@ class FrontendUser extends WireData implements Module {
         $field->required = 1;
         $field->addHookAfter('processInput', function($event) {
             $field = $event->object;
-            $this->userObj->pass = $field->value;
+            wire('fu')->userObj->pass = $field->value;
         });
         $field->addHookBefore('render', function($event) {
             $field = $event->object;
@@ -249,11 +251,11 @@ class FrontendUser extends WireData implements Module {
         $field->fhSanitizer = 'username';
         $field->addHookAfter('processInput', function($event) {
             $field = $event->object;
-            $username = $this->form->fhValue($field->name);
+            $username = wire('fu')->form->fhValue($field->name);
             
             if (empty($username))   return;
             elseif (wire('users')->count("name={$username}") == 0) {
-                $this->userObj->name = $username;
+                wire('fu')->userObj->name = $username;
             }
             else {
                 $field->error(__('Username already taken!'));  
@@ -273,11 +275,11 @@ class FrontendUser extends WireData implements Module {
         $field->required = 1;
         $field->addHookAfter('processInput', function($event) {
             $field = $event->object;
-            $email = $this->form->fhValue($field->name);
+            $email = wire('fu')->form->fhValue($field->name);
             
             if (empty($email))  return;
             elseif (wire('users')->count("email={$email}") == 0) {
-                $this->userObj->email = $email;
+                wire('fu')->userObj->email = $email;
             }
             else {
                 $field->error(__('Email address already taken!'));
@@ -297,7 +299,7 @@ class FrontendUser extends WireData implements Module {
         $field->required = 1;
         $field->addHookAfter('processInput', function($event) {
             $field = $event->object;
-            $this->userObj->pass = $field->value;
+            wire('fu')->userObj->pass = $field->value;
         });
         $field->addHookBefore('render', function($event) {
             $field = $event->object;
@@ -318,7 +320,7 @@ class FrontendUser extends WireData implements Module {
         $persist->addoption('persist', $this->_('Remember me?'));
         $persist->addHookAfter('Session::login', function($event) use (&$persist) {
             if (isset($persist->value[0]) && $persist->value[0] === 'persist') {
-                $this->modules->get('LoginPersist')->persist();
+                wire('modules')->get('LoginPersist')->persist();
             }
         });
         return $persist;
@@ -347,6 +349,6 @@ class FrontendUser extends WireData implements Module {
      */
     protected function emailValidationRegister() {
         $plugin = $this->modules->get('FrontendUserRegisterEmailValidation');
-        return $plugin->emailValidationRegister($this);
+        return $plugin->emailValidationRegister();
     }
 }

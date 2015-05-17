@@ -29,9 +29,6 @@ class FrontendUserRegisterEmailValidation extends WireData implements Module {
         );
     }
     
-    /** @var FrontendUser The parent module object / instance */
-    protected $fu;
-    
     public function init() { }
     
     /**
@@ -39,9 +36,8 @@ class FrontendUserRegisterEmailValidation extends WireData implements Module {
      * @param InputfieldForm $form PW form object to add needed hooks to
      * @return Inputfield PW form field
      */
-    public function emailValidationRegister($fu) {
-        $this->fu = $fu;
-        $form = $fu->attr('form');
+    public function emailValidationRegister() {
+        $form = wire('fu')->attr('form');
         $form->addhookBefore('processInput', $this, 'hookRegisterFormBeforeProcess');
         $form->addhookAfter('processInput', $this, 'hookRegisterFormAfterProcess');
         $form->addhookBefore('render', $this, 'hookRegisterFormBeforeRender');
@@ -99,7 +95,8 @@ class FrontendUserRegisterEmailValidation extends WireData implements Module {
             );
 
             // Load the plain / html email templates
-            $emailContentHtml = wire('page')->render($this->fu->getFile('validationEmail.php', 'templates'), $vars);
+            //$emailContentHtml = wire('page')->render($this->fu->getFile('validationEmail.php', 'templates'), $vars);
+            $emailContentHtml = wire('page')->render(wire('fu')->getFile('validationEmail.php', 'templates'), $vars);
             $emailContentPlain = preg_replace('/^\h+|\h+$/m', '', strip_tags($emailContentHtml));
             // Get config value
             $subject = $this->subject;
