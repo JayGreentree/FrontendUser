@@ -38,10 +38,13 @@ class FrontendUserRegisterEmailValidation extends WireData implements Module {
      */
     public function emailValidationRegister() {
         $form = wire('fu')->form;
+        
+        // Add plugin hooks
         $form->addhookBefore('processInput', $this, 'hookRegisterFormBeforeProcess');
         $form->addhookAfter('processInput', $this, 'hookRegisterFormAfterProcess');
         $form->addhookBefore('render', $this, 'hookRegisterFormBeforeRender');
         
+        // Create form field
         $validation = $this->modules->get('InputfieldText');
         $validation->attr('id+name', 'EmailPreValidation');
         $validation->placeholder = $this->_('Email validation code');
@@ -58,6 +61,7 @@ class FrontendUserRegisterEmailValidation extends WireData implements Module {
         $form = $event->object;
         
         if (empty(wire('session')->get('registerStep'))) {
+            // First / initial registration step. Prepare form
             $form->get('password')->required = false;
             $form->get('EmailPreValidation')->required = false;
         }
@@ -69,24 +73,28 @@ class FrontendUserRegisterEmailValidation extends WireData implements Module {
      */
     protected function hookRegisterFormAfterProcess($event) {
         $form = $event->object;
-        // ToDo: optimize / sanitize ?
         $user = $form->get('username');
         $email = $form->get('email');
     
+        // Validation broken by email address change!
         if (!empty(wire('session')->get('registerStep')) && wire('session')->get('registerEmail') !== $form->fhValue('email')) {
             wire('session')->remove('registerStep');
             $form->get('EmailPreValidation')->value = '';
             $form->fhSubmitBtn->error('Validation broken by email address mismatch!');
             wire('session')->redirect(wire('page')->url, false);
         }
+        // Username and email address sucessfully filled. Start email verification.
         elseif (empty(wire('session')->get('registerStep')) && !count($user->getErrors()) && !count($email->getErrors())) {
+            // Set session values 
             wire('session')->set('registerToken', md5(uniqid(mt_rand(), true)));
             wire('session')->set('registerUsername', $form->fhValue('username', 'text'));
             wire('session')->set('registerEmail', $form->fhValue('email'));
             wire('session')->set('registerStep', 1);
-            // Send validation code email
             
-            // Set template variables
+            // Get config value
+            $subject = $this->subject;  // ToDo: Tests with php 5.3
+            
+            // Set email template variables
             $vars = array(
                 'username'  => wire('session')->get('registerUsername'),
                 'email'     => wire('session')->get('registerEmail'),
@@ -94,21 +102,20 @@ class FrontendUserRegisterEmailValidation extends WireData implements Module {
                 'url'       => wire('page')->httpUrl . '?registerToken=' . wire('session')->get('registerToken'),
                 'content'   => $this->content,  // config variable  // ToDo: Tests with php 5.3
             );
-
+            
             // Load the plain / html email templates
-            //$emailContentHtml = wire('page')->render($this->fu->getFile('validationEmail.php', 'templates'), $vars);
             $emailContentHtml = wire('page')->render(wire('fu')->getFile('validationEmail.php', 'templates'), $vars);
             $emailContentPlain = preg_replace('/^\h+|\h+$/m', '', strip_tags($emailContentHtml));
-            // Get config value
-            $subject = $this->subject;  // ToDo: Tests with php 5.3
-            
-            // send registration token email
+                       
+            // Send verification email with the generated token
             $mail = wireMail();
             $mail->to($form->fhValue('email'))->subject($subject);
             $mail->body($emailContentPlain)->bodyHTML($emailContentHtml);
             $mail->send();
         }
+        // no errors set to username and email address form field...
         elseif (!count($user->getErrors()) && !count($email->getErrors())) {
+            // register token not match! reset validation process and set an error message!
             if ($form->fhValue('EmailPreValidation') != wire('session')->get('registerToken')) {
                 $form->get('EmailPreValidation')->error('Email validation code NOT match!');
             }
@@ -121,23 +128,30 @@ class FrontendUserRegisterEmailValidation extends WireData implements Module {
      */
     protected function hookRegisterFormBeforeRender($event) {
         $form = $event->object;
-    
+        
+        // submitted token matchs the token saved  to the session 
         if (wire('input')->get('registerToken') === wire('session')->get('registerToken')) {
+            // prefill form fields
             $form->get('username')->value = wire('session')->get('registerUsername');
             $form->get('email')->value = wire('session')->get('registerEmail');
             $form->get('EmailPreValidation')->value = wire('session')->get('registerToken');
         }
+        // form is not submitted! Start with initial validation step
         elseif ($form->fhState === null) {
             wire('session')->remove('registerStep');
         }
+        // Clear errors set to the submit button (like token not match message)
         elseif (wire('session')->get('registerStep') === 1) {
             $form->fhSubmitBtn->getErrors(true);
         }
+        // Initial validation step
         if (empty(wire('session')->get('registerStep'))) {
+            // prepare / modify registration form
             $form->remove($form->get('password'));
             $form->get('EmailPreValidation')->attr('disabled', true);
             $form->fhSubmitBtn->value = 'Send email validation code';
             
+            // Clear session values
             wire('session')->remove('registerToken');
             wire('session')->remove('registerUsername');
             wire('session')->remove('registerEmail');
