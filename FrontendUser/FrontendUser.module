@@ -131,7 +131,7 @@ class FrontendUser extends WireData implements Module {
      * @param object $user User object with login name and password
      * @return true|string True if sucessfully logged in or an error message
      */
-    protected function ___auth($user) {
+    public function ___auth($user) {
         try {
             $result = $this->session->login($user->name, $user->pass);
             if ($result instanceof User) {
