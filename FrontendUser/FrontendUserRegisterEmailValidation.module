@@ -24,7 +24,7 @@ class FrontendUserRegisterEmailValidation extends WireData implements Module {
         return array(
             'title' => 'FrontendUserRegisterEmailValidation',
             'summary' => 'Extends FrontendUser with email pre-registration validation feature',
-            'version' => '002',
+            'version' => '003',
             'requires'  => 'FrontendUser>=0.8.4',
         );
     }
@@ -60,7 +60,7 @@ class FrontendUserRegisterEmailValidation extends WireData implements Module {
     protected function hookRegisterFormBeforeProcess($event) {
         $form = $event->object;
         
-        if (empty(wire('session')->get('registerStep'))) {
+        if (!wire('session')->get('registerStep')) {
             // First / initial registration step. Prepare form
             $form->get('password')->required = false;
             $form->get('EmailPreValidation')->required = false;
@@ -77,14 +77,14 @@ class FrontendUserRegisterEmailValidation extends WireData implements Module {
         $email = $form->get('email');
     
         // Validation broken by email address change!
-        if (!empty(wire('session')->get('registerStep')) && wire('session')->get('registerEmail') !== $form->fhValue('email')) {
+        if (wire('session')->get('registerStep') && wire('session')->get('registerEmail') !== $form->fhValue('email')) {
             wire('session')->remove('registerStep');
             $form->get('EmailPreValidation')->value = '';
             $form->fhSubmitBtn->error('Validation broken by email address mismatch!');
             wire('session')->redirect(wire('page')->url, false);
         }
         // Username and email address sucessfully filled. Start email verification.
-        elseif (empty(wire('session')->get('registerStep')) && !count($user->getErrors()) && !count($email->getErrors())) {
+        elseif (!wire('session')->get('registerStep') && !count($user->getErrors()) && !count($email->getErrors())) {
             // Set session values 
             wire('session')->set('registerToken', md5(uniqid(mt_rand(), true)));
             wire('session')->set('registerUsername', $form->fhValue('username', 'text'));
@@ -145,7 +145,7 @@ class FrontendUserRegisterEmailValidation extends WireData implements Module {
             $form->fhSubmitBtn->getErrors(true);
         }
         // Initial validation step
-        if (empty(wire('session')->get('registerStep'))) {
+        if (!wire('session')->get('registerStep')) {
             // prepare / modify registration form
             $form->remove($form->get('password'));
             $form->get('EmailPreValidation')->attr('disabled', true);
