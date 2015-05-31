@@ -4,8 +4,7 @@
 
 ## Documentation and support ##
 
-* [News](https://bitbucket.org/pwFoo/frontenduser/wiki/News)
 * [Documentation](https://bitbucket.org/pwFoo/frontenduser/wiki/Documentation)
-* [Issues](https://bitbucket.org/pwFoo/frontenduser/issues?status=new&status=open) and Processwire support forum
+* [Issues](https://bitbucket.org/pwFoo/frontenduser/issues?status=new&status=open) and [Processwire support forum](https://processwire.com/talk/topic/9811-frontenduser-login-logout-and-register-users-members/)
 * [Source code](https://bitbucket.org/pwFoo/frontenduser/src/master)
 * [Download current release](https://bitbucket.org/pwFoo/frontenduser/get/master.zip)

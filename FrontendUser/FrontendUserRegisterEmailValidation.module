@@ -59,7 +59,7 @@ class FrontendUserRegisterEmailValidation extends WireData implements Module {
      */
     protected function hookRegisterFormBeforeProcess($event) {
         $form = $event->object;
-        
+
         if (!wire('session')->get('registerStep')) {
             // First / initial registration step. Prepare form
             $form->get('password')->required = false;
