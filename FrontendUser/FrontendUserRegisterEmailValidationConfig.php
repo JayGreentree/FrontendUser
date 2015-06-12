@@ -40,6 +40,14 @@ class FrontendUserRegisterEmailValidationConfig extends ModuleConfig {
         $f->label = $this->_('Content address validation email');
         $f->required = true;
         $form->add($f);
+        
+        $f = $this->modules->get('InputfieldRadios');
+        $f->label = 'Type of email:';
+        $f->value = '1';
+        $f->addOption('0', 'Text');
+        $f->addOption('1', 'HTML');
+        $f->attr('name','emailType');
+        $form->add($f);
 
         return $form;
     }

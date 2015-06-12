@@ -105,12 +105,17 @@ class FrontendUserRegisterEmailValidation extends WireData implements Module {
             
             // Load the plain / html email templates
             $emailContentHtml = wire('page')->render(wire('fu')->getFile('validationEmail.php', 'templates'), $vars);
-            $emailContentPlain = preg_replace('/^\h+|\h+$/m', '', strip_tags($emailContentHtml));
                        
             // Send verification email with the generated token
             $mail = wireMail();
             $mail->to($form->fhValue('email'))->subject($subject);
-            $mail->body($emailContentPlain)->bodyHTML($emailContentHtml);
+            if ((int)$this->emailType == 1) {
+                $mail->bodyHTML($emailContentHtml);
+            }
+            else {
+                $emailContentPlain = preg_replace('/^\h+|\h+$/m', '', strip_tags($emailContentHtml));
+                $mail->body($emailContentPlain);
+            }
             $mail->send();
         }
         // no errors set to username and email address form field...
