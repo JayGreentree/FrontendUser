@@ -217,7 +217,7 @@ class FrontendUser extends WireData implements Module {
         $field->placeholder = $this->_('Username');
         $field->attr('id+name', 'username');
         $field->required = 1;
-        $field->fhSanitizer = 'username';
+        $field->fhSanitizer = 'pageName';
         $field->addHookAfter('processInput', function($event) {
             $field = $event->object;
             wire('fu')->userObj->name = wire('fu')->form->fhValue($field->name);
