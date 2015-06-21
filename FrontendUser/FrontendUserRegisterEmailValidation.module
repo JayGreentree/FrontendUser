@@ -24,7 +24,7 @@ class FrontendUserRegisterEmailValidation extends WireData implements Module {
         return array(
             'title' => 'FrontendUserRegisterEmailValidation',
             'summary' => 'Extends FrontendUser with email pre-registration validation feature',
-            'version' => '003',
+            'version' => '004',
             'requires'  => 'FrontendUser>=0.8.4',
         );
     }
