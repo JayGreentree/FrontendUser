@@ -24,7 +24,7 @@ class FrontendUser extends WireData implements Module {
         return array(
             'title' => 'FrontendUser',
             'summary' => 'Frontend user login, logout and registration',
-            'version' => '086',
+            'version' => '087',
             'requires'  => 'FormHelper>=0.7.0',
         );
     }
@@ -256,7 +256,7 @@ class FrontendUser extends WireData implements Module {
         $field->label = $this->_('Username');
         $field->attr('id+name', 'username');
         $field->required = 1;
-        $field->fhSanitizer = 'username';
+        $field->fhSanitizer = 'pageName';
         $field->addHookAfter('processInput', function($event) {
             $field = $event->object;
             $username = wire('fu')->form->fhValue($field->name);
