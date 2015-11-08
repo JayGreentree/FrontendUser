@@ -1,12 +1,12 @@
 <?php
 /**
  * Processwire 'FrontendUserRegisterEmailValidation' module
- * 
+ *
  * Extends FrontendUser with email pre-registration validation feature.
- * 
+ *
  * @author pwFoo
  * @since 2015-05-13
- * 
+ *
  * ProcessWire 2.x
  * Copyright (C) 2011 by Ryan Cramer
  * Licensed under GNU/GPL v2, see LICENSE.TXT
@@ -17,20 +17,20 @@
 class FrontendUserRegisterEmailValidation extends WireData implements Module {
     /**
      * getModuleInfo is a module required by all modules to tell ProcessWire about them
-     * 
+     *
      * @return array
      */
     public static function getModuleInfo() {
         return array(
             'title' => 'FrontendUserRegisterEmailValidation',
             'summary' => 'Extends FrontendUser with email pre-registration validation feature',
-            'version' => '004',
+            'version' => '005',
             'requires'  => 'FrontendUser>=0.8.4',
         );
     }
-    
+
     public function init() { }
-    
+
     /**
      * Plugin email pre-registration validation: form field
      * @param InputfieldForm $form PW form object to add needed hooks to
@@ -38,21 +38,21 @@ class FrontendUserRegisterEmailValidation extends WireData implements Module {
      */
     public function emailValidationRegister() {
         $form = wire('fu')->form;
-        
+
         // Add plugin hooks
         $form->addhookBefore('processInput', $this, 'hookRegisterFormBeforeProcess');
         $form->addhookAfter('processInput', $this, 'hookRegisterFormAfterProcess');
         $form->addhookBefore('render', $this, 'hookRegisterFormBeforeRender');
-        
+
         // Create form field
         $validation = $this->modules->get('InputfieldText');
         $validation->attr('id+name', 'EmailPreValidation');
         $validation->placeholder = $this->_('Email validation code');
         $validation->skipLabel = 4;
-        $validation->required = 1;        
+        $validation->required = 1;
         return $validation;
     }
-    
+
     /**
      * Plugin email pre-registration validation: Initial form manipulation before form process
      * @param hookEvent $event
@@ -75,7 +75,7 @@ class FrontendUserRegisterEmailValidation extends WireData implements Module {
         $form = $event->object;
         $user = $form->get('username');
         $email = $form->get('email');
-    
+
         // Validation broken by email address change!
         if (wire('session')->get('registerStep') && wire('session')->get('registerEmail') !== $form->fhValue('email')) {
             wire('session')->remove('registerStep');
@@ -85,27 +85,30 @@ class FrontendUserRegisterEmailValidation extends WireData implements Module {
         }
         // Username and email address sucessfully filled. Start email verification.
         elseif (!wire('session')->get('registerStep') && !count($user->getErrors()) && !count($email->getErrors())) {
-            // Set session values 
+            // Set session values
             wire('session')->set('registerToken', md5(uniqid(mt_rand(), true)));
             wire('session')->set('registerUsername', $form->fhValue('username', 'text'));
             wire('session')->set('registerEmail', $form->fhValue('email'));
             wire('session')->set('registerStep', 1);
-            
+
             // Get config value
             $subject = $this->subject;  // ToDo: Tests with php 5.3
-            
+
             // Set email template variables
             $vars = array(
-                'username'  => wire('session')->get('registerUsername'),
-                'email'     => wire('session')->get('registerEmail'),
-                'token'     => wire('session')->get('registerToken'),
-                'url'       => wire('page')->httpUrl . '?registerToken=' . wire('session')->get('registerToken'),
-                'content'   => $this->content,  // config variable  // ToDo: Tests with php 5.3
+                'username'    => wire('session')->get('registerUsername'),
+                'email'       => wire('session')->get('registerEmail'),
+                'token'       => wire('session')->get('registerToken'),
+                'url'         => wire('page')->httpUrl . '?registerToken=' . wire('session')->get('registerToken'),
+                'content'     => $this->content,  // config variable  // ToDo: Tests with php 5.3
+                // No markup from page template (https://processwire.com/talk/topic/9811-frontenduser-login-logout-and-register-users-members/?p=105615)
+                'prependFile' => null,
+                'appendFile'  => null,
             );
-            
+
             // Load the plain / html email templates
             $emailContentHtml = wire('page')->render(wire('fu')->getFile('validationEmail.php', 'templates'), $vars);
-                       
+
             // Send verification email with the generated token
             $mail = wireMail();
             $mail->to($form->fhValue('email'))->subject($subject);
@@ -133,8 +136,8 @@ class FrontendUserRegisterEmailValidation extends WireData implements Module {
      */
     protected function hookRegisterFormBeforeRender($event) {
         $form = $event->object;
-        
-        // submitted token matchs the token saved  to the session 
+
+        // submitted token matchs the token saved  to the session
         if (wire('input')->get('registerToken') === wire('session')->get('registerToken')) {
             // prefill form fields
             $form->get('username')->value = wire('session')->get('registerUsername');
@@ -155,7 +158,7 @@ class FrontendUserRegisterEmailValidation extends WireData implements Module {
             $form->remove($form->get('password'));
             $form->get('EmailPreValidation')->attr('disabled', true);
             $form->fhSubmitBtn->value = 'Send email validation code';
-            
+
             // Clear session values
             wire('session')->remove('registerToken');
             wire('session')->remove('registerUsername');
