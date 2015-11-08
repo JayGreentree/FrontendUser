@@ -157,7 +157,7 @@ class FrontendUserRegisterEmailValidation extends WireData implements Module {
             // prepare / modify registration form
             $form->remove($form->get('password'));
             $form->get('EmailPreValidation')->attr('disabled', true);
-            $form->fhSubmitBtn->value = 'Send email validation code';
+            $form->fhSubmitBtn->value = __('Send email validation code');
 
             // Clear session values
             wire('session')->remove('registerToken');
