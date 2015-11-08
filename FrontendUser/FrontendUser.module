@@ -24,7 +24,7 @@ class FrontendUser extends WireData implements Module {
         return array(
             'title' => 'FrontendUser',
             'summary' => 'Frontend user login, logout and registration',
-            'version' => '087',
+            'version' => '088',
             'requires'  => 'FormHelper>=0.7.0',
         );
     }
