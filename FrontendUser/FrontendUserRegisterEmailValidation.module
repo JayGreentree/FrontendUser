@@ -24,8 +24,8 @@ class FrontendUserRegisterEmailValidation extends WireData implements Module {
         return array(
             'title' => 'FrontendUserRegisterEmailValidation',
             'summary' => 'Extends FrontendUser with email pre-registration validation feature',
-            'version' => '006',
-            'requires'  => 'FrontendUser>=0.8.4',
+            'version' => '007',
+            'requires'  => 'FrontendUser>=0.8.4,
         );
     }
 
@@ -124,7 +124,9 @@ class FrontendUserRegisterEmailValidation extends WireData implements Module {
         // no errors set to username and email address form field...
         elseif (!count($user->getErrors()) && !count($email->getErrors())) {
             // register token not match! reset validation process and set an error message!
-            if ($form->fhValue('EmailPreValidation') != wire('session')->get('registerToken')) {
+            // krisj / https://processwire.com/talk/topic/9811-frontenduser-login-logout-and-register-users-members/?p=122040
+            //if ($form->fhValue('EmailPreValidation') != wire('session')->get('registerToken')) {
+            if ($form->fhValue('EmailPreValidation') != wire('session')->get('registerToken') && !wire('session')->get('registerStep')) {
                 $form->get('EmailPreValidation')->error('Email validation code NOT match!');
             }
         }
@@ -156,6 +158,8 @@ class FrontendUserRegisterEmailValidation extends WireData implements Module {
         if (!wire('session')->get('registerStep')) {
             // prepare / modify registration form
             $form->remove($form->get('password'));
+            // krisj / https://processwire.com/talk/topic/9811-frontenduser-login-logout-and-register-users-members/?p=122040
+            $form->remove($form->get('EmailPreValidation')); //hide the token field before the email is sent = less distraction
             $form->get('EmailPreValidation')->attr('disabled', true);
             $form->fhSubmitBtn->value = __('Send email validation code');
 
