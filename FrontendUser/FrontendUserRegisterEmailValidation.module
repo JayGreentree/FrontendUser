@@ -24,7 +24,7 @@ class FrontendUserRegisterEmailValidation extends WireData implements Module {
         return array(
             'title' => 'FrontendUserRegisterEmailValidation',
             'summary' => 'Extends FrontendUser with email pre-registration validation feature',
-            'version' => '007',
+            'version' => '008',
             'requires'  => 'FrontendUser>=0.8.4',
         );
     }
@@ -123,10 +123,7 @@ class FrontendUserRegisterEmailValidation extends WireData implements Module {
         }
         // no errors set to username and email address form field...
         elseif (!count($user->getErrors()) && !count($email->getErrors())) {
-            // register token not match! reset validation process and set an error message!
-            // krisj / https://processwire.com/talk/topic/9811-frontenduser-login-logout-and-register-users-members/?p=122040
-            //if ($form->fhValue('EmailPreValidation') != wire('session')->get('registerToken')) {
-            if (($form->fhValue('EmailPreValidation') != wire('session')->get('registerToken')) && !wire('session')->get('registerStep')) {
+            if ($form->fhValue('EmailPreValidation') != wire('session')->get('registerToken')) {
                 $form->get('EmailPreValidation')->error('Email validation code NOT match!');
             }
         }
