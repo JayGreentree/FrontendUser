@@ -158,7 +158,7 @@ class FrontendUserRegisterEmailValidation extends WireData implements Module {
             // prepare / modify registration form
             $form->remove($form->get('password'));
             // krisj / https://processwire.com/talk/topic/9811-frontenduser-login-logout-and-register-users-members/?p=122040
-            $form->remove($form->get('EmailPreValidation')); //hide the token field before the email is sent = less distraction
+            //$form->remove($form->get('EmailPreValidation')); //hide the token field before the email is sent = less distraction
             $form->get('EmailPreValidation')->attr('disabled', true);
             $form->fhSubmitBtn->value = __('Send email validation code');
 
