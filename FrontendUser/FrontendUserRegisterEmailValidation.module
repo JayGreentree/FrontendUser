@@ -107,7 +107,9 @@ class FrontendUserRegisterEmailValidation extends WireData implements Module {
             );
 
             // Load the plain / html email templates
-            $emailContentHtml = wire('page')->render(wire('fu')->getFile('validationEmail.php', 'templates'), $vars);
+            //$emailContentHtml = wire('page')->render(wire('fu')->getFile('validationEmail.php', 'templates'), $vars);
+            $file = wire('fu')->getFile('validationEmail.php', 'templates');
+            $emailContentHtml = wireRenderFile($file, ['options' => $vars], ['default_path' => '']);
 
             // Send verification email with the generated token
             $mail = wireMail();
